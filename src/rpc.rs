@@ -1,5 +1,6 @@
 extern crate base64;
 use crate::core;
+use crate::core::Failure;
 use crate::crypto;
 use base64::{decode, encode};
 use serde::{Deserialize, Serialize};
@@ -51,7 +52,7 @@ struct AddColonyRPCMsg {
     pub msgtype: String,
 }
 
-pub(super) fn compose_add_colonyrpcmsg(
+pub(super) fn compose_add_colony_rpcmsg(
     colony: core::Colony,
     prvkey: String,
 ) -> std::string::String {
@@ -61,6 +62,56 @@ pub(super) fn compose_add_colonyrpcmsg(
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&add_colony_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct AddRuntimeRPCMsg {
+    pub runtime: core::Runtime,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_add_runtime_rpcmsg(
+    runtime: core::Runtime,
+    prvkey: String,
+) -> std::string::String {
+    let payloadtype = "addruntimemsg";
+    let add_runtime_rpcmsg = AddRuntimeRPCMsg {
+        runtime: runtime.clone(),
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&add_runtime_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct ApproveRuntimeRPCMsg {
+    pub runtimeid: String,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_approve_runtime_rpcmsg(
+    runtimeid: String,
+    prvkey: String,
+) -> std::string::String {
+    let payloadtype = "approveruntimemsg";
+    let approve_runtime_rpcmsg = ApproveRuntimeRPCMsg {
+        runtimeid: runtimeid,
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&approve_runtime_rpcmsg).unwrap();
     let rpcmsg = compose_rpcmsg(
         payloadtype.to_owned(),
         payload.to_owned(),
@@ -93,6 +144,8 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
         Err(err) => return Err(RPCError::new(&err.to_string())),
     };
 
+    let status = res.status();
+
     let body = res.text().await;
     let body = match body {
         Ok(body) => body,
@@ -102,10 +155,11 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
     let rpc_reply: RPCReplyMsg = serde_json::from_str(body.as_str()).unwrap();
 
     let buf = decode(rpc_reply.payload.as_str()).unwrap();
-    let s = String::from_utf8(buf).expect("");
+    let s = String::from_utf8(buf).expect("valid byte array");
 
-    if rpc_reply.error {
-        return Err(RPCError::new(&rpc_reply.payload));
+    if status != 200 {
+        let failure: Failure = serde_json::from_str(s.as_str()).unwrap();
+        return Err(RPCError::new(failure.message.as_str()));
     }
 
     Ok(s)
