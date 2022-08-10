@@ -1,6 +1,6 @@
 extern crate base64;
-use crate::colonieslib::core;
-use crate::cryptolib::crypto;
+use crate::core;
+use crate::crypto;
 use base64::{decode, encode};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
