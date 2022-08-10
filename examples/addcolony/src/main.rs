@@ -1,10 +1,7 @@
-mod colonieslib;
-mod cryptolib;
-
-use crate::colonieslib::colonies;
-use crate::colonieslib::core::Colony;
-use crate::colonieslib::rpc;
-use crate::cryptolib::crypto;
+use colonies;
+use colonies::core::Colony;
+use colonies::crypto;
+use colonies::rpc;
 
 #[tokio::main]
 async fn main() -> Result<(), rpc::RPCError> {

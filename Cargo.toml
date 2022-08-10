@@ -1,9 +1,12 @@
 [package]
-name = "rustrt"
-version = "0.1.0"
+name = "colonies"
+version = "0.0.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["dylib", "rlib"]
 
 [dependencies]
 libc = "0.2.0"
@@ -12,3 +15,4 @@ serde_json = "1"
 base64 = "0.3.1"
 reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
+tokio-test = "*"
