@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use libc::c_char;
 use std::ffi::CStr;
 use std::ffi::CString;
