@@ -7,7 +7,7 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Debug)]
-struct RPCError {
+pub struct RPCError {
     details: String,
 }
 
@@ -32,43 +32,46 @@ impl Error for RPCError {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RPCMsg {
+struct RPCMsg {
     pub signature: String,
     pub payloadtype: String,
     pub payload: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct RPCReplyMsg {
+    pub payloadtype: String,
+    pub payload: String,
+    pub error: bool,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct AddColonyRPCMsg {
+struct AddColonyRPCMsg {
     pub colony: core::Colony,
     pub msgtype: String,
 }
 
-pub fn compose_add_colonyrpcmsg(
+pub(super) fn compose_add_colonyrpcmsg(
     colony: core::Colony,
     prvkey: String,
-) -> Result<std::string::String, serde_json::Error> {
+) -> std::string::String {
     let payloadtype = "addcolonymsg";
     let add_colony_rpcmsg = AddColonyRPCMsg {
         colony: colony.clone(),
         msgtype: payloadtype.to_owned(),
     };
-    let payload = serde_json::to_string(&add_colony_rpcmsg);
-    let payload = match payload {
-        Ok(str) => str,
-        Err(err) => panic!("{err}"),
-    };
+    let payload = serde_json::to_string(&add_colony_rpcmsg).unwrap();
     let rpcmsg = compose_rpcmsg(
         payloadtype.to_owned(),
         payload.to_owned(),
         prvkey.to_owned(),
     );
 
-    serde_json::to_string(&rpcmsg)
+    serde_json::to_string(&rpcmsg).unwrap()
 }
 
-pub fn compose_rpcmsg(payloadtype: String, payload: String, prvkey: String) -> RPCMsg {
-    let payload_base64 = base64::encode(payload.as_bytes());
+fn compose_rpcmsg(payloadtype: String, payload: String, prvkey: String) -> RPCMsg {
+    let payload_base64 = encode(payload.as_bytes());
     let signature = crypto::gen_signature(&payload_base64, &prvkey);
     RPCMsg {
         payload: payload_base64,
@@ -77,17 +80,33 @@ pub fn compose_rpcmsg(payloadtype: String, payload: String, prvkey: String) -> R
     }
 }
 
-pub async fn send_rpcmsg(msg: String) -> Result<(), reqwest::Error> {
+pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
     let client = reqwest::Client::new();
     let res = client
         .post("http://localhost:50080/api")
         .body(msg)
         .send()
-        .await?;
+        .await;
 
-    let body = res.text().await?;
+    let res = match res {
+        Ok(res) => res,
+        Err(err) => return Err(RPCError::new(&err.to_string())),
+    };
 
-    println!("{:?}", body);
+    let body = res.text().await;
+    let body = match body {
+        Ok(body) => body,
+        Err(err) => return Err(RPCError::new(&err.to_string())),
+    };
 
-    Ok(())
+    let rpc_reply: RPCReplyMsg = serde_json::from_str(body.as_str()).unwrap();
+
+    let buf = decode(rpc_reply.payload.as_str()).unwrap();
+    let s = String::from_utf8(buf).expect("");
+
+    if rpc_reply.error {
+        return Err(RPCError::new(&rpc_reply.payload));
+    }
+
+    Ok(s)
 }
