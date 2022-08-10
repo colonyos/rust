@@ -1,6 +1,8 @@
 extern crate base64;
-use crate::core;
+use crate::core::Colony;
 use crate::core::Failure;
+use crate::core::ProcessSpec;
+use crate::core::Runtime;
 use crate::crypto;
 use base64::{decode, encode};
 use serde::{Deserialize, Serialize};
@@ -48,14 +50,11 @@ struct RPCReplyMsg {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct AddColonyRPCMsg {
-    pub colony: core::Colony,
+    pub colony: Colony,
     pub msgtype: String,
 }
 
-pub(super) fn compose_add_colony_rpcmsg(
-    colony: core::Colony,
-    prvkey: String,
-) -> std::string::String {
+pub(super) fn compose_add_colony_rpcmsg(colony: &Colony, prvkey: &String) -> std::string::String {
     let payloadtype = "addcolonymsg";
     let add_colony_rpcmsg = AddColonyRPCMsg {
         colony: colony.clone(),
@@ -73,13 +72,13 @@ pub(super) fn compose_add_colony_rpcmsg(
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct AddRuntimeRPCMsg {
-    pub runtime: core::Runtime,
+    pub runtime: Runtime,
     pub msgtype: String,
 }
 
 pub(super) fn compose_add_runtime_rpcmsg(
-    runtime: core::Runtime,
-    prvkey: String,
+    runtime: &Runtime,
+    prvkey: &String,
 ) -> std::string::String {
     let payloadtype = "addruntimemsg";
     let add_runtime_rpcmsg = AddRuntimeRPCMsg {
@@ -103,15 +102,40 @@ struct ApproveRuntimeRPCMsg {
 }
 
 pub(super) fn compose_approve_runtime_rpcmsg(
-    runtimeid: String,
-    prvkey: String,
+    runtimeid: &String,
+    prvkey: &String,
 ) -> std::string::String {
     let payloadtype = "approveruntimemsg";
     let approve_runtime_rpcmsg = ApproveRuntimeRPCMsg {
-        runtimeid: runtimeid,
+        runtimeid: runtimeid.to_owned(),
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&approve_runtime_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct SubmitProcessSpecRPCMsg {
+    pub spec: ProcessSpec,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_submit_processpec_rpcmsg(
+    spec: ProcessSpec,
+    prvkey: String,
+) -> std::string::String {
+    let payloadtype = "submitprocessespecmsg";
+    let submit_processspec_rpcmsg = SubmitProcessSpecRPCMsg {
+        spec: spec,
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&submit_processspec_rpcmsg).unwrap();
     let rpcmsg = compose_rpcmsg(
         payloadtype.to_owned(),
         payload.to_owned(),
