@@ -2,7 +2,7 @@
 This repo contains a Rust implementation of the ColonyRuntime API, making it possible to implement Colonies applications/workers in Rust.
 
 ## Example code
-Just a simple helloworld! For full example, click [here](examples/assign/src/main.rs).
+Just a simple helloworld! For full example with error handling, click [here](examples/assign/src/main.rs).
 
 ```rust
 let colonyid = "4787a5071856a4acf702b2ffcea422e3237a679c681314113d86139461290cf4";
