@@ -3,6 +3,20 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub const PENDING: i32 = 0;
+pub const APPROVED: i32 = 1;
+pub const REJECTED: i32 = 2;
+
+pub const IN: i32 = 0;
+pub const OUT: i32 = 1;
+pub const ERR: i32 = 2;
+pub const ENV: i32 = 4;
+
+pub const WAITING: i32 = 0;
+pub const RUNNING: i32 = 1;
+pub const SUCCESS: i32 = 2;
+pub const FAILED: i32 = 3;
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Failure {
     pub status: i32,
@@ -29,6 +43,25 @@ pub struct Runtime {
     pub state: i32,
     pub commissiontime: String,
     pub lastheardfromtime: String,
+}
+
+impl Runtime {
+    pub fn new(name: &str, runtimeid: &str, runtimetype: &str, colonyid: &str) -> Runtime {
+        Runtime {
+            runtimeid: runtimeid.to_owned(),
+            runtimetype: runtimetype.to_owned(),
+            name: name.to_owned(),
+            colonyid: colonyid.to_owned(),
+            cpu: "".to_owned(),
+            cores: 0,
+            mem: 0,
+            gpu: "".to_owned(),
+            gpus: 0,
+            state: 0,
+            commissiontime: "2022-08-08T10:22:25.819199495+02:00".to_owned(),
+            lastheardfromtime: "2022-08-08T10:22:25.819199495+02:00".to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -97,6 +130,20 @@ pub struct Attribute {
     pub attributetype: i32,
     pub key: String,
     pub value: String,
+}
+
+impl Attribute {
+    pub fn new(colonyid: &str, processid: &str, key: &str, value: &str) -> Attribute {
+        Attribute {
+            attributeid: "".to_owned(),
+            targetid: processid.to_owned(),
+            targetcolonyid: colonyid.to_owned(),
+            targetprocessgraphid: "".to_owned(),
+            attributetype: OUT,
+            key: key.to_owned(),
+            value: value.to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

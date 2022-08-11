@@ -13,7 +13,7 @@ async fn main() -> Result<(), rpc::RPCError> {
     };
 
     let server_prvkey = "fcc79953d8a751bf41db661592dc34d30004b1a651ffa0725b03ac227641499d";
-    let added_colony = colonies::add_colony(colony, server_prvkey.to_owned()).await?;
+    let added_colony = colonies::add_colony(&colony, &server_prvkey.to_owned()).await?;
     println!("{:?}", colony_prvkey);
     println!("{:?}", added_colony);
 
