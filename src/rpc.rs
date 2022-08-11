@@ -1,4 +1,5 @@
 extern crate base64;
+use crate::core::Attribute;
 use crate::core::Colony;
 use crate::core::Failure;
 use crate::core::ProcessSpec;
@@ -9,44 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug)]
-pub struct RPCError {
-    details: String,
-}
-
-impl RPCError {
-    fn new(msg: &str) -> RPCError {
-        RPCError {
-            details: msg.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for RPCError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.details)
-    }
-}
-
-impl Error for RPCError {
-    fn description(&self) -> &str {
-        &self.details
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct RPCMsg {
-    pub signature: String,
-    pub payloadtype: String,
-    pub payload: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct RPCReplyMsg {
-    pub payloadtype: String,
-    pub payload: String,
-    pub error: bool,
-}
+// add colony
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct AddColonyRPCMsg {
@@ -69,6 +33,8 @@ pub(super) fn compose_add_colony_rpcmsg(colony: &Colony, prvkey: &String) -> std
 
     serde_json::to_string(&rpcmsg).unwrap()
 }
+
+// add runtime
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct AddRuntimeRPCMsg {
@@ -95,6 +61,8 @@ pub(super) fn compose_add_runtime_rpcmsg(
     serde_json::to_string(&rpcmsg).unwrap()
 }
 
+// approve runtime
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct ApproveRuntimeRPCMsg {
     pub runtimeid: String,
@@ -120,6 +88,8 @@ pub(super) fn compose_approve_runtime_rpcmsg(
     serde_json::to_string(&rpcmsg).unwrap()
 }
 
+// submit processspec
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct SubmitProcessSpecRPCMsg {
     pub spec: ProcessSpec,
@@ -127,12 +97,12 @@ struct SubmitProcessSpecRPCMsg {
 }
 
 pub(super) fn compose_submit_processpec_rpcmsg(
-    spec: ProcessSpec,
-    prvkey: String,
+    spec: &ProcessSpec,
+    prvkey: &String,
 ) -> std::string::String {
     let payloadtype = "submitprocessespecmsg";
     let submit_processspec_rpcmsg = SubmitProcessSpecRPCMsg {
-        spec: spec,
+        spec: spec.clone(),
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&submit_processspec_rpcmsg).unwrap();
@@ -143,6 +113,218 @@ pub(super) fn compose_submit_processpec_rpcmsg(
     );
 
     serde_json::to_string(&rpcmsg).unwrap()
+}
+
+// assign process
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct AssignProcessRPCMsg {
+    pub colonyid: String,
+    pub latest: bool,
+    pub timeout: i32,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_assign_process_rpcmsg(
+    colonyid: &String,
+    latest: bool,
+    timeout: i32,
+    prvkey: &String,
+) -> std::string::String {
+    let payloadtype = "assignprocessmsg";
+    let assign_process_rpcmsg = AssignProcessRPCMsg {
+        colonyid: colonyid.to_owned(),
+        latest: latest,
+        timeout: timeout,
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&assign_process_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+// close process (as successful)
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct CloseProcessRPCMsg {
+    pub processid: String,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_close_process_rpcmsg(
+    processid: &String,
+    prvkey: &String,
+) -> std::string::String {
+    let payloadtype = "closesuccessfulmsg";
+    let close_process_rpcmsg = CloseProcessRPCMsg {
+        processid: processid.to_owned(),
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&close_process_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+// close process (as failed)
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct FailProcessRPCMsg {
+    pub processid: String,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_fail_process_rpcmsg(
+    processid: &String,
+    prvkey: &String,
+) -> std::string::String {
+    let payloadtype = "closefailedmsg";
+    let fail_process_rpcmsg = FailProcessRPCMsg {
+        processid: processid.to_owned(),
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&fail_process_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+// add attribute
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct AddAttributeRPCMsg {
+    pub attribute: Attribute,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_add_attr_rpcmsg(attr: &Attribute, prvkey: &String) -> std::string::String {
+    let payloadtype = "addattributemsg";
+    let add_attr_rpcmsg = AddAttributeRPCMsg {
+        attribute: attr.clone(),
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&add_attr_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+// get process
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct GetProcessRPCMsg {
+    pub processid: String,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_get_process_rpcmsg(
+    processid: &String,
+    prvkey: &String,
+) -> std::string::String {
+    let payloadtype = "getprocessmsg";
+    let get_process_rpcmsg = GetProcessRPCMsg {
+        processid: processid.to_owned(),
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&get_process_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+// get processes
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct GetProcessesRPCMsg {
+    pub colonyid: String,
+    pub count: i32,
+    pub state: i32,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_get_processes_rpcmsg(
+    colonyid: &String,
+    count: i32,
+    state: i32,
+    prvkey: &String,
+) -> std::string::String {
+    let payloadtype = "getprocessesmsg";
+    let get_processes_rpcmsg = GetProcessesRPCMsg {
+        colonyid: colonyid.to_owned(),
+        count: count,
+        state: state,
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&get_processes_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+// RPC
+
+impl Error for RPCError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+}
+
+#[derive(Debug)]
+pub struct RPCError {
+    details: String,
+}
+
+impl RPCError {
+    fn new(msg: &str) -> RPCError {
+        RPCError {
+            details: msg.to_string(),
+        }
+    }
+}
+
+impl fmt::Display for RPCError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.details)
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct RPCMsg {
+    pub signature: String,
+    pub payloadtype: String,
+    pub payload: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct RPCReplyMsg {
+    pub payloadtype: String,
+    pub payload: String,
+    pub error: bool,
 }
 
 fn compose_rpcmsg(payloadtype: String, payload: String, prvkey: String) -> RPCMsg {
@@ -177,7 +359,6 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
     };
 
     let rpc_reply: RPCReplyMsg = serde_json::from_str(body.as_str()).unwrap();
-
     let buf = decode(rpc_reply.payload.as_str()).unwrap();
     let s = String::from_utf8(buf).expect("valid byte array");
 
