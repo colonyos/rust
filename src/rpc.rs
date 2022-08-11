@@ -297,13 +297,18 @@ impl Error for RPCError {
 #[derive(Debug)]
 pub struct RPCError {
     details: String,
+    connection_error: bool,
 }
 
 impl RPCError {
-    fn new(msg: &str) -> RPCError {
+    fn new(msg: &str, connection_error: bool) -> RPCError {
         RPCError {
             details: msg.to_string(),
+            connection_error: connection_error,
         }
+    }
+    pub fn conn_err(&self) -> bool {
+        self.connection_error
     }
 }
 
@@ -347,7 +352,7 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
 
     let res = match res {
         Ok(res) => res,
-        Err(err) => return Err(RPCError::new(&err.to_string())),
+        Err(err) => return Err(RPCError::new(&err.to_string(), true)),
     };
 
     let status = res.status();
@@ -355,7 +360,7 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
     let body = res.text().await;
     let body = match body {
         Ok(body) => body,
-        Err(err) => return Err(RPCError::new(&err.to_string())),
+        Err(err) => return Err(RPCError::new(&err.to_string(), false)),
     };
 
     let rpc_reply: RPCReplyMsg = serde_json::from_str(body.as_str()).unwrap();
@@ -364,7 +369,7 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
 
     if status != 200 {
         let failure: Failure = serde_json::from_str(s.as_str()).unwrap();
-        return Err(RPCError::new(failure.message.as_str()));
+        return Err(RPCError::new(failure.message.as_str(), false));
     }
 
     Ok(s)
