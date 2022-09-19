@@ -32,6 +32,13 @@ pub async fn approve_runtime(runtimeid: &str, prvkey: &str) -> Result<(), rpc::R
     Ok(())
 }
 
+pub async fn delete_runtime(runtimeid: &str, prvkey: &str) -> Result<(), rpc::RPCError> {
+    let rpcmsg = rpc::compose_delete_runtime_rpcmsg(&runtimeid.to_owned(), &prvkey.to_owned());
+    rpc::send_rpcmsg(rpcmsg).await?;
+
+    Ok(())
+}
+
 pub async fn submit(
     spec: &core::ProcessSpec,
     prvkey: &str,
