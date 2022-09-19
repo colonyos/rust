@@ -88,6 +88,30 @@ pub(super) fn compose_approve_runtime_rpcmsg(
     serde_json::to_string(&rpcmsg).unwrap()
 }
 
+// delete runtime
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct DeleteRuntimeRPCMsg {
+    pub runtimeid: String,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_delete_runtime_rpcmsg(runtimeid: &String, prvkey: &String)-> std::string::String {
+    let payloadtype = "deleteruntimemsg";
+    let delete_runtime_rpcmsg = DeleteRuntimeRPCMsg {
+        runtimeid: runtimeid.to_owned(),
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&delete_runtime_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
 // submit processspec
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
