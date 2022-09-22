@@ -3,6 +3,7 @@ use colonies::core::Colony;
 use colonies::crypto;
 use colonies::rpc;
 
+// main
 #[tokio::main]
 async fn main() -> Result<(), rpc::RPCError> {
     let colony_prvkey = crypto::gen_prvkey();
