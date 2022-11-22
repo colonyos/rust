@@ -145,7 +145,6 @@ impl Attribute {
         }
     }
 }
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Process {
     pub processid: String,
@@ -157,7 +156,6 @@ pub struct Process {
     pub endtime: String,
     pub waitdeadline: String,
     pub execdeadline: String,
-    pub errormsg: String,
     pub retries: i32,
     pub attributes: Vec<Attribute>,
     pub spec: ProcessSpec,
@@ -165,4 +163,9 @@ pub struct Process {
     pub parents: Vec<String>,
     pub children: Vec<String>,
     pub processgraphid: String,
+    #[serde(rename = "in")]
+    pub input: Vec<String>,
+    #[serde(rename = "out")]
+    pub output: Vec<String>,
+    pub errors: Vec<String>,
 }

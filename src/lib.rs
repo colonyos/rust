@@ -38,6 +38,7 @@ pub async fn submit(
 ) -> Result<core::Process, rpc::RPCError> {
     let rpcmsg = rpc::compose_submit_processpec_rpcmsg(spec, &prvkey.to_owned());
     let reply_json = rpc::send_rpcmsg(rpcmsg).await?;
+    //println!("{}", reply_json.as_str());
     let process: core::Process = serde_json::from_str(reply_json.as_str()).unwrap();
 
     Ok(process)
