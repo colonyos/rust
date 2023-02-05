@@ -14,19 +14,19 @@ pub async fn add_colony(
     Ok(colony)
 }
 
-pub async fn add_runtime(
-    runtime: &core::Runtime,
+pub async fn add_executor(
+    executor: &core::Executor,
     prvkey: &str,
-) -> Result<core::Runtime, rpc::RPCError> {
-    let rpcmsg = rpc::compose_add_runtime_rpcmsg(runtime, &prvkey.to_owned());
+) -> Result<core::Executor, rpc::RPCError> {
+    let rpcmsg = rpc::compose_add_executor_rpcmsg(executor, &prvkey.to_owned());
     let reply_json = rpc::send_rpcmsg(rpcmsg).await?;
-    let runtime: core::Runtime = serde_json::from_str(reply_json.as_str()).unwrap();
+    let executor: core::Executor = serde_json::from_str(reply_json.as_str()).unwrap();
 
-    Ok(runtime)
+    Ok(executor)
 }
 
-pub async fn approve_runtime(runtimeid: &str, prvkey: &str) -> Result<(), rpc::RPCError> {
-    let rpcmsg = rpc::compose_approve_runtime_rpcmsg(&runtimeid.to_owned(), &prvkey.to_owned());
+pub async fn approve_executor(executorid: &str, prvkey: &str) -> Result<(), rpc::RPCError> {
+    let rpcmsg = rpc::compose_approve_executor_rpcmsg(&executorid.to_owned(), &prvkey.to_owned());
     rpc::send_rpcmsg(rpcmsg).await?;
 
     Ok(())
@@ -38,7 +38,7 @@ pub async fn submit(
 ) -> Result<core::Process, rpc::RPCError> {
     let rpcmsg = rpc::compose_submit_processpec_rpcmsg(spec, &prvkey.to_owned());
     let reply_json = rpc::send_rpcmsg(rpcmsg).await?;
-    //println!("{}", reply_json.as_str());
+    println!("{}", reply_json.as_str());
     let process: core::Process = serde_json::from_str(reply_json.as_str()).unwrap();
 
     Ok(process)
