@@ -1,9 +1,9 @@
 extern crate base64;
 use crate::core::Attribute;
 use crate::core::Colony;
+use crate::core::Executor;
 use crate::core::Failure;
 use crate::core::ProcessSpec;
-use crate::core::Runtime;
 use crate::crypto;
 use base64::{decode, encode};
 use serde::{Deserialize, Serialize};
@@ -34,24 +34,24 @@ pub(super) fn compose_add_colony_rpcmsg(colony: &Colony, prvkey: &String) -> std
     serde_json::to_string(&rpcmsg).unwrap()
 }
 
-// add runtime
+// add executor
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-struct AddRuntimeRPCMsg {
-    pub runtime: Runtime,
+struct AddExecutorRPCMsg {
+    pub executor: Executor,
     pub msgtype: String,
 }
 
-pub(super) fn compose_add_runtime_rpcmsg(
-    runtime: &Runtime,
+pub(super) fn compose_add_executor_rpcmsg(
+    executor: &Executor,
     prvkey: &String,
 ) -> std::string::String {
-    let payloadtype = "addruntimemsg";
-    let add_runtime_rpcmsg = AddRuntimeRPCMsg {
-        runtime: runtime.clone(),
+    let payloadtype = "addexecutormsg";
+    let add_executor_rpcmsg = AddExecutorRPCMsg {
+        executor: executor.clone(),
         msgtype: payloadtype.to_owned(),
     };
-    let payload = serde_json::to_string(&add_runtime_rpcmsg).unwrap();
+    let payload = serde_json::to_string(&add_executor_rpcmsg).unwrap();
     let rpcmsg = compose_rpcmsg(
         payloadtype.to_owned(),
         payload.to_owned(),
@@ -61,24 +61,24 @@ pub(super) fn compose_add_runtime_rpcmsg(
     serde_json::to_string(&rpcmsg).unwrap()
 }
 
-// approve runtime
+// approve executor
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-struct ApproveRuntimeRPCMsg {
-    pub runtimeid: String,
+struct ApproveExecutorRPCMsg {
+    pub executorid: String,
     pub msgtype: String,
 }
 
-pub(super) fn compose_approve_runtime_rpcmsg(
-    runtimeid: &String,
+pub(super) fn compose_approve_executor_rpcmsg(
+    executorid: &String,
     prvkey: &String,
 ) -> std::string::String {
-    let payloadtype = "approveruntimemsg";
-    let approve_runtime_rpcmsg = ApproveRuntimeRPCMsg {
-        runtimeid: runtimeid.to_owned(),
+    let payloadtype = "approveexecutormsg";
+    let approve_executor_rpcmsg = ApproveExecutorRPCMsg {
+        executorid: executorid.to_owned(),
         msgtype: payloadtype.to_owned(),
     };
-    let payload = serde_json::to_string(&approve_runtime_rpcmsg).unwrap();
+    let payload = serde_json::to_string(&approve_executor_rpcmsg).unwrap();
     let rpcmsg = compose_rpcmsg(
         payloadtype.to_owned(),
         payload.to_owned(),

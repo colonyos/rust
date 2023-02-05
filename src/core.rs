@@ -30,36 +30,51 @@ pub struct Colony {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Runtime {
-    pub runtimeid: String,
-    pub runtimetype: String,
-    pub name: String,
+pub struct Function {
+    pub funcname: String,
+    pub args: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Location {
+    pub long: f64,
+    pub lat: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Executor {
+    pub executorid: String,
+    pub executortype: String,
+    pub executorname: String,
     pub colonyid: String,
-    pub cpu: String,
-    pub cores: i32,
-    pub mem: i32,
-    pub gpu: String,
-    pub gpus: i32,
     pub state: i32,
     pub commissiontime: String,
     pub lastheardfromtime: String,
+    pub location: Location,
+    pub functions: Vec<Function>,
 }
 
-impl Runtime {
-    pub fn new(name: &str, runtimeid: &str, runtimetype: &str, colonyid: &str) -> Runtime {
-        Runtime {
-            runtimeid: runtimeid.to_owned(),
-            runtimetype: runtimetype.to_owned(),
-            name: name.to_owned(),
+impl Executor {
+    pub fn new(
+        name: &str,
+        executorid: &str,
+        executortype: &str,
+        colonyid: &str,
+        functions: Vec<Function>,
+    ) -> Executor {
+        Executor {
+            executorid: executorid.to_owned(),
+            executortype: executortype.to_owned(),
+            executorname: name.to_owned(),
             colonyid: colonyid.to_owned(),
-            cpu: "".to_owned(),
-            cores: 0,
-            mem: 0,
-            gpu: "".to_owned(),
-            gpus: 0,
             state: 0,
             commissiontime: "2022-08-08T10:22:25.819199495+02:00".to_owned(),
             lastheardfromtime: "2022-08-08T10:22:25.819199495+02:00".to_owned(),
+            location: Location {
+                long: 0.0,
+                lat: 0.0,
+            },
+            functions: functions,
         }
     }
 }
@@ -67,17 +82,17 @@ impl Runtime {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Conditions {
     pub colonyid: String,
-    pub runtimeids: Vec<String>,
-    pub runtimetype: String,
+    pub executorids: Vec<String>,
+    pub executortype: String,
     pub dependencies: Vec<String>,
 }
 
 impl Conditions {
-    pub fn new(colonyid: &str, runtimetype: &str) -> Conditions {
+    pub fn new(colonyid: &str, executortype: &str) -> Conditions {
         Conditions {
             colonyid: colonyid.to_owned(),
-            runtimeids: Vec::new(),
-            runtimetype: runtimetype.to_owned(),
+            executorids: Vec::new(),
+            executortype: executortype.to_owned(),
             dependencies: Vec::new(),
         }
     }
@@ -148,7 +163,7 @@ impl Attribute {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Process {
     pub processid: String,
-    pub assignedruntimeid: String,
+    pub assignedexecutorid: String,
     pub isassigned: bool,
     pub state: i32,
     pub submissiontime: String,
