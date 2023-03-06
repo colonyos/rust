@@ -3,7 +3,7 @@ use crate::core::Attribute;
 use crate::core::Colony;
 use crate::core::Executor;
 use crate::core::Failure;
-use crate::core::ProcessSpec;
+use crate::core::FunctionSpec;
 use crate::crypto;
 use base64::{decode, encode};
 use serde::{Deserialize, Serialize};
@@ -91,17 +91,17 @@ pub(super) fn compose_approve_executor_rpcmsg(
 // submit processspec
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-struct SubmitProcessSpecRPCMsg {
-    pub spec: ProcessSpec,
+struct SubmitFunctionSpecRPCMsg {
+    pub spec: FunctionSpec,
     pub msgtype: String,
 }
 
-pub(super) fn compose_submit_processpec_rpcmsg(
-    spec: &ProcessSpec,
+pub(super) fn compose_submit_functionspec_rpcmsg(
+    spec: &FunctionSpec,
     prvkey: &String,
 ) -> std::string::String {
-    let payloadtype = "submitprocessespecmsg";
-    let submit_processspec_rpcmsg = SubmitProcessSpecRPCMsg {
+    let payloadtype = "submitfuncspecmsg";
+    let submit_processspec_rpcmsg = SubmitFunctionSpecRPCMsg {
         spec: spec.clone(),
         msgtype: payloadtype.to_owned(),
     };
