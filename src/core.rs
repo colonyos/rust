@@ -51,17 +51,10 @@ pub struct Executor {
     pub commissiontime: String,
     pub lastheardfromtime: String,
     pub location: Location,
-    pub functions: Vec<Function>,
 }
 
 impl Executor {
-    pub fn new(
-        name: &str,
-        executorid: &str,
-        executortype: &str,
-        colonyid: &str,
-        functions: Vec<Function>,
-    ) -> Executor {
+    pub fn new(name: &str, executorid: &str, executortype: &str, colonyid: &str) -> Executor {
         Executor {
             executorid: executorid.to_owned(),
             executortype: executortype.to_owned(),
@@ -74,7 +67,6 @@ impl Executor {
                 long: 0.0,
                 lat: 0.0,
             },
-            functions: functions,
         }
     }
 }
@@ -99,38 +91,41 @@ impl Conditions {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ProcessSpec {
-    pub name: String,
-    pub func: String,
+pub struct FunctionSpec {
+    pub nodename: String,
+    pub funcname: String,
     pub args: Vec<String>,
     pub priority: i32,
     pub maxwaittime: i32,
     pub maxexectime: i32,
     pub maxretries: i32,
     pub conditions: Conditions,
+    pub label: String,
     pub env: HashMap<String, String>,
 }
 
-impl ProcessSpec {
+impl FunctionSpec {
     pub fn new(
-        name: &str,
-        func: &str,
+        nodename: &str,
+        funcname: &str,
         args: Vec<String>,
         maxwaittime: i32,
         maxexectime: i32,
         maxretries: i32,
         conditions: Conditions,
+        label: &str,
         env: HashMap<String, String>,
-    ) -> ProcessSpec {
-        ProcessSpec {
-            name: name.to_owned(),
-            func: func.to_owned(),
+    ) -> FunctionSpec {
+        FunctionSpec {
+            nodename: nodename.to_owned(),
+            funcname: funcname.to_owned(),
             args: args,
             priority: -1,
             maxwaittime: maxwaittime,
             maxexectime: maxexectime,
             maxretries: maxretries,
             conditions: conditions,
+            label: label.to_owned(),
             env: env,
         }
     }
@@ -166,6 +161,7 @@ pub struct Process {
     pub assignedexecutorid: String,
     pub isassigned: bool,
     pub state: i32,
+    pub prioritytime: i32,
     pub submissiontime: String,
     pub starttime: String,
     pub endtime: String,
@@ -173,7 +169,7 @@ pub struct Process {
     pub execdeadline: String,
     pub retries: i32,
     pub attributes: Vec<Attribute>,
-    pub spec: ProcessSpec,
+    pub spec: FunctionSpec,
     pub waitforparents: bool,
     pub parents: Vec<String>,
     pub children: Vec<String>,

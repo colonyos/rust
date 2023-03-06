@@ -33,10 +33,10 @@ pub async fn approve_executor(executorid: &str, prvkey: &str) -> Result<(), rpc:
 }
 
 pub async fn submit(
-    spec: &core::ProcessSpec,
+    spec: &core::FunctionSpec,
     prvkey: &str,
 ) -> Result<core::Process, rpc::RPCError> {
-    let rpcmsg = rpc::compose_submit_processpec_rpcmsg(spec, &prvkey.to_owned());
+    let rpcmsg = rpc::compose_submit_functionspec_rpcmsg(spec, &prvkey.to_owned());
     let reply_json = rpc::send_rpcmsg(rpcmsg).await?;
     println!("{}", reply_json.as_str());
     let process: core::Process = serde_json::from_str(reply_json.as_str()).unwrap();

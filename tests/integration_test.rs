@@ -3,8 +3,7 @@ use colonies::core::Attribute;
 use colonies::core::Colony;
 use colonies::core::Conditions;
 use colonies::core::Executor;
-use colonies::core::Function;
-use colonies::core::ProcessSpec;
+use colonies::core::FunctionSpec;
 use colonies::crypto;
 use random_string::generate;
 use std::collections::HashMap;
@@ -31,27 +30,30 @@ async fn create_test_executor(colonyid: &String, prvkey: &String) -> (Executor, 
     let charset = "abcdefghijklmnopqrstuvwxyz";
     let name = generate(64, charset);
 
-    let functions: Vec<Function> = Vec::new();
-    let executor = Executor::new(
-        &name,
-        &executorid,
-        "test_executor_type",
-        &colonyid,
-        functions,
-    );
+    let executor = Executor::new(&name, &executorid, "test_executor_type", &colonyid);
     let added_executor = colonies::add_executor(&executor, &prvkey).await.unwrap();
     let _ = colonies::approve_executor(&executorid, &prvkey).await;
 
     (executor.clone(), added_executor, executorprvkey)
 }
 
-fn create_test_process_spec(colonyid: &str) -> ProcessSpec {
+fn create_test_function_spec(colonyid: &str) -> FunctionSpec {
     let conditions = Conditions::new(colonyid, "test_executor_type");
     let mut args: Vec<String> = Vec::new();
     args.push("test_args".to_owned());
     let mut env: HashMap<String, String> = HashMap::new();
     env.insert("test_key".to_owned(), "test_value".to_owned());
-    ProcessSpec::new("test_name", "test_func", args, -1, -1, -1, conditions, env)
+    FunctionSpec::new(
+        "test_name",
+        "test_func",
+        args,
+        -1,
+        -1,
+        -1,
+        conditions,
+        "label",
+        env,
+    )
 }
 
 #[tokio::test]
@@ -85,7 +87,7 @@ async fn test_submit() {
     let t = create_test_executor(&colony.colonyid, &colonyprvkey).await;
     let executorprvkey = t.2;
 
-    let spec = create_test_process_spec(colony.colonyid.as_str());
+    let spec = create_test_function_spec(colony.colonyid.as_str());
 
     let process = colonies::submit(&spec, &executorprvkey).await.unwrap();
     assert_eq!(64, process.processid.len())
@@ -100,7 +102,7 @@ async fn test_assign() {
     let t = create_test_executor(&colony.colonyid, &colonyprvkey).await;
     let executorprvkey = t.2;
 
-    let spec = create_test_process_spec(colony.colonyid.as_str());
+    let spec = create_test_function_spec(colony.colonyid.as_str());
     let submitted_process = colonies::submit(&spec, &executorprvkey).await.unwrap();
     let assigned_process = colonies::assign(&colony.colonyid, false, 10, &executorprvkey)
         .await
@@ -117,7 +119,7 @@ async fn test_close() {
     let t = create_test_executor(&colony.colonyid, &colonyprvkey).await;
     let executorprvkey = t.2;
 
-    let spec = create_test_process_spec(colony.colonyid.as_str());
+    let spec = create_test_function_spec(colony.colonyid.as_str());
     let submitted_process = colonies::submit(&spec, &executorprvkey).await.unwrap();
     let assigned_process = colonies::assign(&colony.colonyid, false, 10, &executorprvkey)
         .await
@@ -136,7 +138,7 @@ async fn test_failed() {
     let t = create_test_executor(&colony.colonyid, &colonyprvkey).await;
     let executorprvkey = t.2;
 
-    let spec = create_test_process_spec(colony.colonyid.as_str());
+    let spec = create_test_function_spec(colony.colonyid.as_str());
     let submitted_process = colonies::submit(&spec, &executorprvkey).await.unwrap();
     let assigned_process = colonies::assign(&colony.colonyid, false, 10, &executorprvkey)
         .await
@@ -155,7 +157,7 @@ async fn test_add_attr() {
     let t = create_test_executor(&colony.colonyid, &colonyprvkey).await;
     let executorprvkey = t.2;
 
-    let spec = create_test_process_spec(colony.colonyid.as_str());
+    let spec = create_test_function_spec(colony.colonyid.as_str());
     let submitted_process = colonies::submit(&spec, &executorprvkey).await.unwrap();
     let assigned_process = colonies::assign(&colony.colonyid, false, 10, &executorprvkey)
         .await
@@ -187,7 +189,7 @@ async fn test_get_process() {
     let t = create_test_executor(&colony.colonyid, &colonyprvkey).await;
     let executorprvkey = t.2;
 
-    let spec = create_test_process_spec(colony.colonyid.as_str());
+    let spec = create_test_function_spec(colony.colonyid.as_str());
     let submitted_process = colonies::submit(&spec, &executorprvkey).await.unwrap();
     let assigned_process = colonies::assign(&colony.colonyid, false, 10, &executorprvkey)
         .await
@@ -212,7 +214,7 @@ async fn test_get_processes() {
     let t = create_test_executor(&colony.colonyid, &colonyprvkey).await;
     let executorprvkey = t.2;
 
-    let spec = create_test_process_spec(colony.colonyid.as_str());
+    let spec = create_test_function_spec(colony.colonyid.as_str());
     let submitted_process1 = colonies::submit(&spec, &executorprvkey).await.unwrap();
     let submitted_process2 = colonies::submit(&spec, &executorprvkey).await.unwrap();
 
