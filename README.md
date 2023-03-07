@@ -48,7 +48,7 @@ cargo run
 
 ## Submit a process spec 
 ```console
-colonies process run --func say --args hello  --targettype cli --wait 
+colonies function exec --func say --args hello  --targettype cli --wait 
 ```
 
 Output:
