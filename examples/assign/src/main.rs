@@ -27,7 +27,7 @@ async fn main() {
             assigned_process.processid
         );
 
-        match assigned_process.spec.func.as_str() {
+        match assigned_process.spec.funcname.as_str() {
             "say" => {
                 let attr = Attribute::new(
                     &colonyid,
