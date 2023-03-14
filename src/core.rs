@@ -161,7 +161,7 @@ pub struct Process {
     pub assignedexecutorid: String,
     pub isassigned: bool,
     pub state: i32,
-    pub prioritytime: i32,
+    pub prioritytime: i64,
     pub submissiontime: String,
     pub starttime: String,
     pub endtime: String,
