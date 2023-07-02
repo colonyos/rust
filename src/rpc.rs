@@ -345,6 +345,7 @@ fn compose_rpcmsg(payloadtype: String, payload: String, prvkey: String) -> RPCMs
 pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
     let client = reqwest::Client::new();
     let res = client
+        //.post("https://colonies.colonyos.io:443/api")
         .post("http://localhost:50080/api")
         .body(msg)
         .send()
