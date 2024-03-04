@@ -1,11 +1,20 @@
 use colonies;
-use colonies::core::Attribute;
 use tokio::time::{sleep, Duration};
+
+fn fib(n: i64) -> i64 {
+    if n <= 0 {
+        return 0;
+    } else if n == 1 {
+        return 1;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
 
 #[tokio::main]
 async fn main() {
     let colonyname = "dev";
-    let executorprvkey = "ddf7f7791208083b6a9ed975a72684f6406a269cfa36f1b1c32045c0a71fff05";
+    let executorprvkey = "20452339785f6793bde92befb1b8f8bcb3394bb4f8e0b7899c5c48fbd98c7f7b";
 
     loop {
         println!("trying to get an assignment");
@@ -17,6 +26,7 @@ async fn main() {
                     println!("connection problem, re-trying in 1 second");
                     sleep(Duration::from_millis(1000)).await;
                 }
+                println!("{}", err);
                 println!("timeout, or another worker got the assignment, re-trying ...");
                 continue;
             }
@@ -28,17 +38,10 @@ async fn main() {
         );
 
         match assigned_process.spec.funcname.as_str() {
-            "say" => {
-                let attr = Attribute::new(
-                    &colonyid,
-                    &assigned_process.processid,
-                    "output",
-                    &assigned_process.spec.args[0],
-                );
-                let res = colonies::add_attr(&attr, executorprvkey).await;
-                if res.is_err() {
-                    println!("failed to add attribute");
-                }
+            "calc_fibonacci" => {
+                //println!("{}", assigned_process.spec.args);
+                let f = fib(45);
+                println!("fibonacci of {} is {}", 40, f);
                 let res = colonies::close(&assigned_process.processid, executorprvkey).await;
                 if res.is_err() {
                     println!("failed to close process");

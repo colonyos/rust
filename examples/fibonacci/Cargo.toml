@@ -1,0 +1,8 @@
+[package]
+name = "assign"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+colonies = { path = "../../", version = "0.0.1" }

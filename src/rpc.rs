@@ -18,6 +18,13 @@ struct AddColonyRPCMsg {
     pub msgtype: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct RemoveColonyRPCMsg {
+    pub colonyname: String ,
+    pub msgtype: String,
+}
+
+
 pub(super) fn compose_add_colony_rpcmsg(colony: &Colony, prvkey: &String) -> std::string::String {
     let payloadtype = "addcolonymsg";
     let add_colony_rpcmsg = AddColonyRPCMsg {
@@ -25,6 +32,22 @@ pub(super) fn compose_add_colony_rpcmsg(colony: &Colony, prvkey: &String) -> std
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&add_colony_rpcmsg).unwrap();
+    let rpcmsg = compose_rpcmsg(
+        payloadtype.to_owned(),
+        payload.to_owned(),
+        prvkey.to_owned(),
+    );
+
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+pub(super) fn compose_remove_colony_rpcmsg(colonyname: &String, prvkey: &String) -> std::string::String {
+    let payloadtype = "removecolonymsg";
+    let remove_colony_rpcmsg = RemoveColonyRPCMsg {
+        colonyname: colonyname.to_owned(),
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&remove_colony_rpcmsg).unwrap();
     let rpcmsg = compose_rpcmsg(
         payloadtype.to_owned(),
         payload.to_owned(),
@@ -65,17 +88,20 @@ pub(super) fn compose_add_executor_rpcmsg(
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct ApproveExecutorRPCMsg {
-    pub executorid: String,
+    pub colonyname: String,
+    pub executorname: String,
     pub msgtype: String,
 }
 
 pub(super) fn compose_approve_executor_rpcmsg(
-    executorid: &String,
+    colonyname: &String,
+    executorname: &String,
     prvkey: &String,
 ) -> std::string::String {
     let payloadtype = "approveexecutormsg";
     let approve_executor_rpcmsg = ApproveExecutorRPCMsg {
-        executorid: executorid.to_owned(),
+        colonyname: colonyname.to_owned(),
+        executorname: executorname.to_owned(),
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&approve_executor_rpcmsg).unwrap();
@@ -119,22 +145,23 @@ pub(super) fn compose_submit_functionspec_rpcmsg(
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct AssignProcessRPCMsg {
-    pub colonyid: String,
-    pub latest: bool,
+    pub colonyname: String,
     pub timeout: i32,
+    pub availablecpu: String,
+    pub availablemem: String,
     pub msgtype: String,
 }
 
 pub(super) fn compose_assign_process_rpcmsg(
-    colonyid: &String,
-    latest: bool,
+    colonyname: &String,
     timeout: i32,
     prvkey: &String,
 ) -> std::string::String {
     let payloadtype = "assignprocessmsg";
     let assign_process_rpcmsg = AssignProcessRPCMsg {
-        colonyid: colonyid.to_owned(),
-        latest: latest,
+        colonyname: colonyname.to_owned(),
+        availablecpu: "".to_owned(),
+        availablemem: "".to_owned(),
         timeout: timeout,
         msgtype: payloadtype.to_owned(),
     };
@@ -257,21 +284,21 @@ pub(super) fn compose_get_process_rpcmsg(
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct GetProcessesRPCMsg {
-    pub colonyid: String,
+    pub colonyname: String,
     pub count: i32,
     pub state: i32,
     pub msgtype: String,
 }
 
 pub(super) fn compose_get_processes_rpcmsg(
-    colonyid: &String,
+    colonyname: &String,
     count: i32,
     state: i32,
     prvkey: &String,
 ) -> std::string::String {
     let payloadtype = "getprocessesmsg";
     let get_processes_rpcmsg = GetProcessesRPCMsg {
-        colonyid: colonyid.to_owned(),
+        colonyname: colonyname.to_owned(),
         count: count,
         state: state,
         msgtype: payloadtype.to_owned(),
@@ -321,7 +348,7 @@ impl fmt::Display for RPCError {
 #[derive(Debug, Deserialize, Serialize)]
 struct RPCMsg {
     pub signature: String,
-    pub payloadtype: String,
+     pub payloadtype: String,
     pub payload: String,
 }
 
@@ -345,6 +372,7 @@ fn compose_rpcmsg(payloadtype: String, payload: String, prvkey: String) -> RPCMs
 pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
     let client = reqwest::Client::new();
     let res = client
+        //.post("https://colonies.colonyos.io:443/api")
         .post("http://localhost:50080/api")
         .body(msg)
         .send()

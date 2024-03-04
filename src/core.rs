@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use serde_json::Value;
 
 pub const PENDING: i32 = 0;
 pub const APPROVED: i32 = 1;
@@ -46,7 +47,7 @@ pub struct Executor {
     pub executorid: String,
     pub executortype: String,
     pub executorname: String,
-    pub colonyid: String,
+    pub colonyname: String,
     pub state: i32,
     pub commissiontime: String,
     pub lastheardfromtime: String,
@@ -54,12 +55,12 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn new(name: &str, executorid: &str, executortype: &str, colonyid: &str) -> Executor {
+    pub fn new(name: &str, executorid: &str, executortype: &str, colonyname: &str) -> Executor {
         Executor {
             executorid: executorid.to_owned(),
             executortype: executortype.to_owned(),
             executorname: name.to_owned(),
-            colonyid: colonyid.to_owned(),
+            colonyname: colonyname.to_owned(),
             state: 0,
             commissiontime: "2022-08-08T10:22:25.819199495+02:00".to_owned(),
             lastheardfromtime: "2022-08-08T10:22:25.819199495+02:00".to_owned(),
@@ -72,22 +73,79 @@ impl Executor {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Conditions {
-    pub colonyid: String,
-    pub executorids: Vec<String>,
-    pub executortype: String,
-    pub dependencies: Vec<String>,
+pub struct GPU {
+    pub name: String,
+    pub mem: String,
+    pub count: i32,
+    pub nodecount: i32,
 }
 
-impl Conditions {
-    pub fn new(colonyid: &str, executortype: &str) -> Conditions {
-        Conditions {
-            colonyid: colonyid.to_owned(),
-            executorids: Vec::new(),
-            executortype: executortype.to_owned(),
-            dependencies: Vec::new(),
-        }
-    }
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Conditions {
+    pub colonyname: String,
+    pub executornames: Vec<String>,
+    pub executortype: String,
+    pub dependencies: Vec<String>,
+    pub nodes: i32,
+    pub cpu: String,
+    pub processes: i32,
+    #[serde(rename = "processes-per-node")]
+    pub processes_per_node: i32,  
+    pub mem: String,
+    pub storage: String,
+    pub gpu: GPU,
+    pub walltime: i64,
+}
+
+// impl Conditions {
+//     pub fn new(colonyname: &str, executortype: &str) -> Conditions {
+//         Conditions {
+//             colonyname: colonyname.to_owned(),
+//             executorids: Vec::new(),
+//             executortype: executortype.to_owned(),
+//             dependencies: Vec::new(),
+//         }
+//     }
+// }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Filesystem {
+    pub mount: String,
+    pub snapshots: Vec<SnapshotMount>,
+    pub dirs: Vec<SyncDirMount>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SnapshotMount {
+    pub snapshotid: String,
+    pub label: String,
+    pub dir: String,
+    pub keepfiles: bool,
+    pub keepsnapshot: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OnStart {
+    pub keeplocal: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OnClose {
+    pub keeplocal: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ConflictResolution {
+    pub onstart: OnStart,
+    pub onclose: OnClose,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SyncDirMount {
+    pub label: String,
+    pub dir: String,
+    pub keepfiles: bool,
+    pub onconflicts: ConflictResolution,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -95,12 +153,14 @@ pub struct FunctionSpec {
     pub nodename: String,
     pub funcname: String,
     pub args: Vec<String>,
+    pub kwargs: HashMap<String, Value>,
     pub priority: i32,
     pub maxwaittime: i32,
     pub maxexectime: i32,
     pub maxretries: i32,
     pub conditions: Conditions,
     pub label: String,
+    pub fs: Filesystem,
     pub env: HashMap<String, String>,
 }
 
@@ -120,12 +180,18 @@ impl FunctionSpec {
             nodename: nodename.to_owned(),
             funcname: funcname.to_owned(),
             args: args,
+            kwargs: HashMap::new(),
             priority: -1,
             maxwaittime: maxwaittime,
             maxexectime: maxexectime,
             maxretries: maxretries,
             conditions: conditions,
             label: label.to_owned(),
+            fs: Filesystem {
+                mount: "".to_owned(),
+                snapshots: Vec::new(),
+                dirs: Vec::new(),
+            },
             env: env,
         }
     }
@@ -135,7 +201,7 @@ impl FunctionSpec {
 pub struct Attribute {
     pub attributeid: String,
     pub targetid: String,
-    pub targetcolonyid: String,
+    pub targetcolonyname: String,
     pub targetprocessgraphid: String,
     pub attributetype: i32,
     pub key: String,
@@ -143,11 +209,11 @@ pub struct Attribute {
 }
 
 impl Attribute {
-    pub fn new(colonyid: &str, processid: &str, key: &str, value: &str) -> Attribute {
+    pub fn new(colonyname: &str, processid: &str, key: &str, value: &str) -> Attribute {
         Attribute {
             attributeid: "".to_owned(),
             targetid: processid.to_owned(),
-            targetcolonyid: colonyid.to_owned(),
+            targetcolonyname: colonyname.to_owned(),
             targetprocessgraphid: "".to_owned(),
             attributetype: OUT,
             key: key.to_owned(),
@@ -155,9 +221,12 @@ impl Attribute {
         }
     }
 }
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Process {
     pub processid: String,
+    pub initiatorid: String,
+    pub initiatorname: String,
     pub assignedexecutorid: String,
     pub isassigned: bool,
     pub state: i32,

@@ -14,6 +14,16 @@ pub async fn add_colony(
     Ok(colony)
 }
 
+pub async fn remove_colony(
+    colony_name: &str,
+    prvkey: &str,
+) -> Result<(), rpc::RPCError> {
+    let rpcmsg = rpc::compose_remove_colony_rpcmsg(&colony_name.to_owned(), &prvkey.to_owned());
+    rpc::send_rpcmsg(rpcmsg).await?;
+
+    Ok(())
+}
+
 pub async fn add_executor(
     executor: &core::Executor,
     prvkey: &str,
@@ -25,8 +35,8 @@ pub async fn add_executor(
     Ok(executor)
 }
 
-pub async fn approve_executor(executorid: &str, prvkey: &str) -> Result<(), rpc::RPCError> {
-    let rpcmsg = rpc::compose_approve_executor_rpcmsg(&executorid.to_owned(), &prvkey.to_owned());
+pub async fn approve_executor(colonyname: &str, executorname: &str, prvkey: &str) -> Result<(), rpc::RPCError> {
+    let rpcmsg = rpc::compose_approve_executor_rpcmsg(&colonyname.to_owned(), &executorname.to_owned(), &prvkey.to_owned());
     rpc::send_rpcmsg(rpcmsg).await?;
 
     Ok(())
@@ -46,13 +56,11 @@ pub async fn submit(
 
 pub async fn assign(
     colonyid: &str,
-    latest: bool,
     timeout: i32,
     prvkey: &str,
 ) -> Result<core::Process, rpc::RPCError> {
     let rpcmsg = rpc::compose_assign_process_rpcmsg(
         &colonyid.to_owned(),
-        latest,
         timeout,
         &prvkey.to_owned(),
     );
