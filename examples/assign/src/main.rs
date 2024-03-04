@@ -4,12 +4,12 @@ use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() {
-    let colonyid = "4787a5071856a4acf702b2ffcea422e3237a679c681314113d86139461290cf4";
+    let colonyname = "dev";
     let executorprvkey = "ddf7f7791208083b6a9ed975a72684f6406a269cfa36f1b1c32045c0a71fff05";
 
     loop {
         println!("trying to get an assignment");
-        let assigned_process = colonies::assign(&colonyid, false, 10, &executorprvkey).await;
+        let assigned_process = colonies::assign(&colonyname, 10, &executorprvkey).await;
         let assigned_process = match assigned_process {
             Ok(process) => process,
             Err(err) => {

@@ -7,7 +7,7 @@ Note: this code has only been tested on Linux.
 Just a simple helloworld! For full example with error handling, click [here](examples/assign/src/main.rs).
 
 ```rust
-let colonyid = "4787a5071856a4acf702b2ffcea422e3237a679c681314113d86139461290cf4";
+let colonyname = "dev";
 let executorprvkey = "ddf7f7791208083b6a9ed975a72684f6406a269cfa36f1b1c32045c0a71fff05";
 
 loop {
