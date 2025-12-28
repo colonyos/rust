@@ -11,6 +11,34 @@ Channels are append-only message logs attached to processes that enable:
 - **Progress updates**: Report incremental progress during long-running tasks
 - **Request-response**: Correlate responses to specific requests using `inreplyto`
 
+## Architecture Overview
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Executor
+
+    Client->>Server: Submit process with channels
+    Server-->>Client: Process ID
+
+    Server->>Executor: Assign process
+    Executor-->>Server: Accept
+
+    Note over Client,Executor: Channels now available
+
+    loop Streaming
+        Executor->>Server: channel_append(data)
+        Server-->>Client: WebSocket push
+    end
+
+    Executor->>Server: channel_append(end)
+    Server-->>Client: End message
+    Executor->>Server: close()
+
+    Note over Server: Channels cleaned up
+```
+
 ## Prerequisites
 
 1. Rust toolchain (1.70 or later)
@@ -421,6 +449,121 @@ colonyos::channel_append(...).await?;
 // Wait for subscription
 handle.await?;
 ```
+
+## Sync Channels for Reliable Completion
+
+When a process closes, its channels are immediately cleaned up. This can cause race conditions where clients miss the final messages. Use a **sync channel** to ensure reliable completion.
+
+### The Problem
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Executor
+
+    Executor->>Server: channel_append(end)
+    Executor->>Server: close()
+    Note over Server: Channels deleted!
+
+    Client->>Server: Read channel
+    Server-->>Client: Error: Channel not found
+```
+
+### The Solution: Acknowledgment Pattern
+
+Use a dedicated sync channel for the client to acknowledge receipt before the executor closes:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Executor
+
+    Executor->>Server: channel_append(end) on output
+    Server-->>Client: End message
+
+    Client->>Server: channel_append(ack) on sync
+    Server-->>Executor: Ack message
+
+    Executor->>Server: close()
+    Note over Server: Safe to cleanup
+```
+
+### Implementation
+
+**Executor side** - wait for client ACK before closing:
+
+```rust
+// Send end message on output channel
+colonyos::channel_append(&pid, "output", seq, "", "end", 0, prvkey).await?;
+
+// Wait for client acknowledgment on sync channel
+loop {
+    let msgs = colonyos::channel_read(&pid, "sync", 0, 10, prvkey).await?;
+    if msgs.iter().any(|m| m.payload_as_string() == "ack") {
+        break;
+    }
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+}
+
+// Now safe to close - client has received all messages
+colonyos::close(&pid, prvkey).await?;
+```
+
+**Client side** - send ACK after receiving end message:
+
+```rust
+// Define channels in spec
+let mut spec = FunctionSpec::new("stream-task", "cli", "dev");
+spec.channels = vec!["output".to_string(), "sync".to_string()];
+
+let process = colonyos::submit(&spec, prvkey).await?;
+
+// Wait for process to start
+let running = colonyos::subscribe_process(
+    &process,
+    colonyos::core::RUNNING,
+    30,
+    prvkey,
+).await?;
+
+// Subscribe to output channel
+colonyos::subscribe_channel(
+    &running.processid,
+    "output",
+    0,
+    60,
+    prvkey,
+    |entries| {
+        for entry in &entries {
+            if entry.msgtype == "end" {
+                // Send acknowledgment
+                let pid = running.processid.clone();
+                let key = prvkey.to_string();
+                tokio::spawn(async move {
+                    let _ = colonyos::channel_append(
+                        &pid, "sync", 1, "ack", "data", 0, &key,
+                    ).await;
+                });
+                return false;  // Stop subscribing
+            }
+            println!("Received: {}", entry.payload_as_string());
+        }
+        true
+    },
+).await?;
+```
+
+### When to Use Sync Channels
+
+Use sync channels when:
+
+- **Critical data**: You cannot afford to lose any messages
+- **Confirmation required**: The executor needs to know the client received everything
+- **Ordered shutdown**: Resources must be cleaned up in a specific order
+
+For simple streaming where occasional message loss is acceptable, the basic end message pattern is sufficient.
 
 ## Troubleshooting
 

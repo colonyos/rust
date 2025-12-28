@@ -11,6 +11,60 @@ ColonyOS is a distributed meta-orchestrator that enables building compute contin
 - **Process**: A unit of work defined by a FunctionSpec
 - **Workflow**: A DAG of processes with dependencies
 
+## Architecture
+
+```mermaid
+graph LR
+    subgraph Colony
+        S[ColonyOS Server]
+        DB[(Database)]
+    end
+
+    subgraph Executors
+        E1[Executor 1]
+        E2[Executor 2]
+        E3[Executor N]
+    end
+
+    C[Client] -->|submit process| S
+    S --> DB
+    S -->|assign| E1
+    S -->|assign| E2
+    S -->|assign| E3
+    E1 -->|result| S
+    E2 -->|result| S
+    E3 -->|result| S
+    S -->|response| C
+```
+
+## Executor Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant Executor
+    participant Server
+
+    Executor->>Server: add_executor()
+    Server-->>Executor: Registered
+
+    Executor->>Server: approve_executor()
+    Server-->>Executor: Approved
+
+    loop Processing
+        Executor->>Server: assign() [long-poll]
+        Server-->>Executor: Process
+
+        Executor->>Executor: Execute function
+
+        alt Success
+            Executor->>Server: set_output()
+            Executor->>Server: close()
+        else Failure
+            Executor->>Server: fail()
+        end
+    end
+```
+
 ## Prerequisites
 
 1. Rust toolchain (1.70 or later)
@@ -263,6 +317,15 @@ colonies log get -e my-rust-executor
 ```
 
 ## Step 8: Workflows
+
+Workflows are DAGs (Directed Acyclic Graphs) of processes with dependencies:
+
+```mermaid
+graph LR
+    A[Step 1: Fetch Data] --> C[Step 3: Process]
+    B[Step 2: Fetch Config] --> C
+    C --> D[Step 4: Save Results]
+```
 
 Create a workflow with dependencies:
 

@@ -7,6 +7,39 @@
 
 Rust SDK for [ColonyOS](https://github.com/colonyos/colonies) - build distributed applications with executors that can run anywhere.
 
+## How It Works
+
+```mermaid
+graph LR
+    subgraph Clients
+        C1[Client App]
+        C2[CLI]
+    end
+
+    subgraph ColonyOS Server
+        S[Server]
+        Q[(Process Queue)]
+    end
+
+    subgraph Executors
+        E1[Rust Executor]
+        E2[WASM Executor]
+        E3[Python Executor]
+    end
+
+    C1 -->|submit| S
+    C2 -->|submit| S
+    S --> Q
+    Q -->|assign| E1
+    Q -->|assign| E2
+    Q -->|assign| E3
+    E1 -->|result| S
+    E2 -->|result| S
+    E3 -->|result| S
+    S -->|response| C1
+    S -->|response| C2
+```
+
 ## Features
 
 - Pure Rust implementation (no C dependencies)
@@ -144,6 +177,17 @@ See [docs/API.md](docs/API.md) for the complete API reference.
 - `get_executor`, `get_executors`
 
 ### Process Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> WAITING: submit()
+    WAITING --> RUNNING: assign()
+    RUNNING --> SUCCESS: close()
+    RUNNING --> FAILED: fail()
+    SUCCESS --> [*]
+    FAILED --> [*]
+```
+
 - `submit` - Submit a new process
 - `assign` - Wait for and assign a process to execute
 - `close` - Mark process as successful

@@ -13,6 +13,62 @@ A WASM executor allows you to run ColonyOS workers in the browser. This is usefu
 - Creating interactive demos
 - Edge computing scenarios where executors run on client devices
 
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Browser
+        W[WASM Module]
+        JS[JavaScript]
+        UI[Web UI]
+    end
+
+    subgraph ColonyOS
+        S[Server]
+        Q[(Process Queue)]
+    end
+
+    subgraph CLI
+        C[colonies CLI]
+    end
+
+    JS --> W
+    UI --> JS
+    W <-->|HTTP/WebSocket| S
+    S --> Q
+    C -->|submit| S
+    Q -->|assign| W
+    W -->|result| S
+    S -->|response| C
+```
+
+## WASM Executor Flow
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant WASM
+    participant Server
+    participant CLI
+
+    Browser->>WASM: Initialize module
+    WASM->>Server: register()
+    WASM->>Server: approve()
+
+    CLI->>Server: submit(func, targettype=wasm)
+    Server-->>CLI: Process ID
+
+    loop Long-polling
+        WASM->>Server: assign()
+        Server-->>WASM: Process
+        WASM->>WASM: Execute in browser
+        WASM->>Server: set_output()
+        WASM->>Server: close()
+    end
+
+    Server-->>CLI: Result
+```
+
 ## Prerequisites
 
 - Rust toolchain with `wasm32-unknown-unknown` target
@@ -224,6 +280,16 @@ main().catch(console.error);
 ```
 
 ## Building
+
+```mermaid
+graph LR
+    A[src/lib.rs] -->|wasm-pack build| B[pkg/]
+    B --> C[wasm_executor.js]
+    B --> D[wasm_executor_bg.wasm]
+    C --> E[index.html]
+    D --> E
+    E -->|serve| F[Browser]
+```
 
 ```bash
 cd examples/wasm

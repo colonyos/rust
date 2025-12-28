@@ -17,6 +17,60 @@ This pattern is ideal for:
 - IoT device orchestration
 - Configuration management
 
+## Architecture Overview
+
+```mermaid
+graph TB
+    subgraph User
+        U[User/Client]
+    end
+
+    subgraph ColonyOS Server
+        BD[Blueprint Definition]
+        B[Blueprint]
+        PQ[(Process Queue)]
+    end
+
+    subgraph Reconciler
+        R[Reconciler Executor]
+        D[Device/Resource]
+    end
+
+    U -->|1. Create Definition| BD
+    U -->|2. Create Blueprint| B
+    B -->|3. Trigger reconcile| PQ
+    PQ -->|4. Assign process| R
+    R -->|5. Read blueprint| B
+    R -->|6. Apply state| D
+    D -->|7. Read actual state| R
+    R -->|8. Update status| B
+```
+
+## Reconciliation Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Server
+    participant Reconciler
+    participant Device
+
+    User->>Server: Update blueprint.spec
+    Server->>Server: Increment generation
+    Server->>Reconciler: Trigger reconcile process
+
+    Reconciler->>Server: Get blueprint
+    Server-->>Reconciler: Blueprint with spec
+
+    Reconciler->>Device: Apply desired state
+    Device-->>Reconciler: Current state
+
+    Reconciler->>Server: Update blueprint.status
+    Reconciler->>Server: Close process
+
+    Note over Server: spec matches status
+```
+
 ## Prerequisites
 
 1. Rust toolchain (1.70 or later)
