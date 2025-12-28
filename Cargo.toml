@@ -31,3 +31,15 @@ base64 = "0.21"
 [dev-dependencies]
 tokio-test = "0.4"
 random-string = "1.0"
+
+[[example]]
+name = "simple_executor"
+path = "examples/simple_executor.rs"
+
+[[example]]
+name = "submit_process"
+path = "examples/submit_process.rs"
+
+[[example]]
+name = "workflow"
+path = "examples/workflow.rs"

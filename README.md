@@ -28,7 +28,7 @@ tokio = { version = "1", features = ["full"] }
 
 ### Building an Executor
 
-An executor is a worker that pulls and executes tasks from a ColonyOS server:
+An executor is a worker that pulls and executes processes from a ColonyOS server:
 
 ```rust
 use colonyos::core::{Attribute, Executor, FunctionSpec, WAITING};
