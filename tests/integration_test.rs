@@ -312,14 +312,77 @@ async fn test_get_processes_empty() {
     .unwrap();
 }
 
-// Note: Channel tests are disabled for now as the channel API requires
-// specific server configuration. The channel functions are available but
-// may require additional setup to work properly.
-//
-// #[tokio::test]
-// async fn test_channel_append_and_read() {
-//     // Channel test implementation...
-// }
+#[tokio::test]
+async fn test_channel_append_and_read() {
+    let t = create_test_colony().await;
+    let colony = t.0;
+    let colonyprvkey = t.2;
+
+    let t = create_test_executor(&colony.name, &colonyprvkey).await;
+    let executorprvkey = t.2;
+
+    // Create a function spec with a channel
+    let mut spec = create_test_function_spec(colony.name.as_str());
+    spec.channels = vec!["test-channel".to_string()];
+
+    // Submit and assign the process
+    let _submitted = colonies::submit(&spec, &executorprvkey).await.unwrap();
+    let assigned = colonies::assign(&colony.name, 10, &executorprvkey)
+        .await
+        .unwrap();
+
+    // Verify channel is in the assigned process spec
+    assert!(assigned.spec.channels.contains(&"test-channel".to_string()));
+
+    // Append data to the channel
+    colonies::channel_append(
+        &assigned.processid,
+        "test-channel",
+        1, // sequence
+        "message 1",
+        "", // payloadtype
+        0, // inreplyto
+        &executorprvkey,
+    )
+    .await
+    .unwrap();
+
+    colonies::channel_append(
+        &assigned.processid,
+        "test-channel",
+        2, // sequence
+        "message 2",
+        "", // payloadtype
+        0, // inreplyto
+        &executorprvkey,
+    )
+    .await
+    .unwrap();
+
+    // Read from the channel
+    let entries = colonies::channel_read(
+        &assigned.processid,
+        "test-channel",
+        0, // afterseq
+        10, // limit
+        &executorprvkey,
+    )
+    .await
+    .unwrap();
+
+    // Verify we got both messages
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].sequence, 1);
+    assert_eq!(entries[0].payload_as_string(), "message 1");
+    assert_eq!(entries[1].sequence, 2);
+    assert_eq!(entries[1].payload_as_string(), "message 2");
+
+    // Close the process
+    let _ = colonies::close(&assigned.processid, &executorprvkey).await;
+
+    let r = colonies::remove_colony(&colony.name, &SERVER_PRVKEY).await;
+    assert!(r.is_ok(), "Expected colonies::remove_colony to succeed");
+}
 
 #[tokio::test]
 async fn test_set_output() {

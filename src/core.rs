@@ -13,14 +13,6 @@ where
     Ok(opt.unwrap_or_default())
 }
 
-fn deserialize_null_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let opt: Option<Vec<u8>> = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or_default())
-}
-
 // ============== Constants ==============
 
 pub const PENDING: i32 = 0;
@@ -470,22 +462,36 @@ pub struct Log {
 
 // ============== Channel ==============
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ChannelEntry {
     #[serde(default)]
     pub sequence: i64,
-    #[serde(default, deserialize_with = "deserialize_null_vec_u8")]
-    pub payload: Vec<u8>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub payloadtype: String,
+    pub payload: String,  // Base64 encoded payload
+    #[serde(default, rename = "type", deserialize_with = "deserialize_null_default")]
+    pub msgtype: String,
     #[serde(default)]
     pub inreplyto: i64,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub timestamp: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub senderid: String,
 }
 
 impl ChannelEntry {
-    /// Returns the payload as a UTF-8 string, or an empty string if invalid.
+    /// Returns the payload decoded from base64 as a UTF-8 string.
     pub fn payload_as_string(&self) -> String {
-        String::from_utf8(self.payload.clone()).unwrap_or_default()
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        match STANDARD.decode(&self.payload) {
+            Ok(bytes) => String::from_utf8(bytes).unwrap_or_default(),
+            Err(_) => self.payload.clone(), // Return as-is if not base64
+        }
+    }
+
+    /// Returns the raw payload bytes decoded from base64.
+    pub fn payload_bytes(&self) -> Vec<u8> {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        STANDARD.decode(&self.payload).unwrap_or_default()
     }
 }
 
