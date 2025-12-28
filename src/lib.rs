@@ -510,7 +510,71 @@ pub async fn reconcile_blueprint(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::core::*;
+
+    #[test]
+    fn test_server_url_configuration() {
+        // Test default URL
+        let default_url = get_server_url();
+        assert!(default_url.contains("localhost") || default_url.contains("50080"));
+
+        // Test setting a custom URL
+        set_server_url("http://custom-server:8080/api");
+        let custom_url = get_server_url();
+        assert_eq!(custom_url, "http://custom-server:8080/api");
+
+        // Reset to default for other tests
+        set_server_url("http://localhost:50080/api");
+    }
+
+    #[test]
+    fn test_module_exports() {
+        // Verify core module is accessible
+        let _colony = core::Colony::new("id", "name");
+        let _executor = core::Executor::new("name", "id", "cli", "colony");
+        let _spec = core::FunctionSpec::new("func", "cli", "colony");
+        let _attr = core::Attribute::new("colony", "id", "key", "value");
+
+        // Verify crypto module is accessible
+        let prvkey = crypto::gen_prvkey();
+        assert_eq!(prvkey.len(), 64);
+
+        let id = crypto::gen_id(&prvkey);
+        assert_eq!(id.len(), 64);
+    }
+
+    #[test]
+    fn test_crypto_exports() {
+        // Test all crypto functions are accessible
+        let key = crypto::gen_prvkey();
+        let id = crypto::gen_id(&key);
+        let hash = crypto::gen_hash("test");
+        let sig = crypto::gen_signature("test", &key);
+        let recovered = crypto::recid("test", &sig);
+
+        assert_eq!(id, recovered);
+        assert_eq!(hash.len(), 64);
+        assert_eq!(sig.len(), 130);
+    }
+
+    #[test]
+    fn test_core_state_constants_accessible() {
+        // Verify state constants are accessible
+        assert_eq!(core::WAITING, 0);
+        assert_eq!(core::RUNNING, 1);
+        assert_eq!(core::SUCCESS, 2);
+        assert_eq!(core::FAILED, 3);
+
+        assert_eq!(core::PENDING, 0);
+        assert_eq!(core::APPROVED, 1);
+        assert_eq!(core::REJECTED, 2);
+
+        assert_eq!(core::IN, 0);
+        assert_eq!(core::OUT, 1);
+        assert_eq!(core::ERR, 2);
+        assert_eq!(core::ENV, 4);
+    }
 
     #[test]
     fn test_colony_creation() {
