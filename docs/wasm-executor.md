@@ -56,7 +56,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # ColonyOS SDK with WASM feature
-colonyos = { path = "../..", default-features = false, features = ["wasm"] }
+colonyos = { version = "1.0", default-features = false, features = ["wasm"] }
 
 # WASM bindings
 wasm-bindgen = "0.2.88"
