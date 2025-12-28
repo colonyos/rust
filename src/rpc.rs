@@ -1221,14 +1221,7 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
         Err(err) => return Err(RPCError::new(&err.to_string(), false)),
     };
 
-    // Handle edge case where server returns multiple concatenated JSON objects
-    // This can happen due to HTTP connection issues - extract just the first object
-    let body_to_parse = match body.find("}{") {
-        Some(idx) => body[..=idx].to_string(), // Include up to and including first }
-        None => body.clone(),
-    };
-
-    let rpc_reply: RPCReplyMsg = serde_json::from_str(body_to_parse.as_str())
+    let rpc_reply: RPCReplyMsg = serde_json::from_str(body.as_str())
         .map_err(|e| RPCError::new(&format!("Failed to parse response: {} - body: {}", e, body), false))?;
     let buf = BASE64.decode(rpc_reply.payload.as_str())
         .map_err(|e| RPCError::new(&format!("Failed to decode payload: {}", e), false))?;
