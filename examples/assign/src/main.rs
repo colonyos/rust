@@ -30,7 +30,7 @@ async fn main() {
         match assigned_process.spec.funcname.as_str() {
             "say" => {
                 let attr = Attribute::new(
-                    &colonyid,
+                    &colonyname,
                     &assigned_process.processid,
                     "output",
                     &assigned_process.spec.args[0],

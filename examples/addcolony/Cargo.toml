@@ -1,8 +1,8 @@
 [package]
 name = "add_colony"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-colonyos = { path = "../../", version = "0.0.1" }
+colonyos = { path = "../../", version = "0.1.0" }
