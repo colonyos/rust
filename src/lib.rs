@@ -1,6 +1,5 @@
 pub mod core;
 pub mod crypto;
-mod crypto_test;
 pub mod rpc;
 
 pub async fn add_colony(

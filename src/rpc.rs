@@ -1,11 +1,10 @@
-extern crate base64;
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use crate::core::Attribute;
 use crate::core::Colony;
 use crate::core::Executor;
 use crate::core::Failure;
 use crate::core::FunctionSpec;
 use crate::crypto;
-use base64::{decode, encode};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
@@ -360,7 +359,7 @@ struct RPCReplyMsg {
 }
 
 fn compose_rpcmsg(payloadtype: String, payload: String, prvkey: String) -> RPCMsg {
-    let payload_base64 = encode(payload.as_bytes());
+    let payload_base64 = BASE64.encode(payload.as_bytes());
     let signature = crypto::gen_signature(&payload_base64, &prvkey);
     RPCMsg {
         payload: payload_base64,
@@ -392,7 +391,7 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
     };
 
     let rpc_reply: RPCReplyMsg = serde_json::from_str(body.as_str()).unwrap();
-    let buf = decode(rpc_reply.payload.as_str()).unwrap();
+    let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
     let s = String::from_utf8(buf).expect("valid byte array");
 
     if status != 200 {
