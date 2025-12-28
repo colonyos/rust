@@ -71,6 +71,8 @@ fn create_test_function_spec(colonyname: &str) -> FunctionSpec {
     spec.args = vec!["test_args".to_owned()];
     spec.label = "label".to_owned();
     spec.env.insert("test_key".to_owned(), "test_value".to_owned());
+    spec.maxexectime = 120;  // 2 minutes to avoid timeout during tests
+    spec.maxwaittime = 60;   // 1 minute wait time
     spec
 }
 
