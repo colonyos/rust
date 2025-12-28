@@ -1,5 +1,5 @@
 [package]
-name = "colonies"
+name = "colonyos"
 version = "0.1.0"
 edition = "2021"
 description = "Rust SDK for ColonyOS"

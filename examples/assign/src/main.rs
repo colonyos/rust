@@ -1,5 +1,5 @@
-use colonies;
-use colonies::core::Attribute;
+use colonyos;
+use colonyos::core::Attribute;
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
@@ -9,7 +9,7 @@ async fn main() {
 
     loop {
         println!("trying to get an assignment");
-        let assigned_process = colonies::assign(&colonyname, 10, &executorprvkey).await;
+        let assigned_process = colonyos::assign(&colonyname, 10, &executorprvkey).await;
         let assigned_process = match assigned_process {
             Ok(process) => process,
             Err(err) => {
@@ -35,18 +35,18 @@ async fn main() {
                     "output",
                     &assigned_process.spec.args[0],
                 );
-                let res = colonies::add_attr(&attr, executorprvkey).await;
+                let res = colonyos::add_attr(&attr, executorprvkey).await;
                 if res.is_err() {
                     println!("failed to add attribute");
                 }
-                let res = colonies::close(&assigned_process.processid, executorprvkey).await;
+                let res = colonyos::close(&assigned_process.processid, executorprvkey).await;
                 if res.is_err() {
                     println!("failed to close process");
                 }
             }
             _ => {
                 println!("invalid function name");
-                let res = colonies::fail(&assigned_process.processid, executorprvkey).await;
+                let res = colonyos::fail(&assigned_process.processid, executorprvkey).await;
                 if res.is_err() {
                     println!("failed to fail process");
                 }

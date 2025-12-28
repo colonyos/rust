@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --example workflow
 
-use colonies::core::{FunctionSpec, WorkflowSpec, SUCCESS, FAILED};
+use colonyos::core::{FunctionSpec, WorkflowSpec, SUCCESS, FAILED};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Submit the workflow
-    let processgraph = colonies::submit_workflow(&workflow, prvkey).await?;
+    let processgraph = colonyos::submit_workflow(&workflow, prvkey).await?;
     println!("Submitted workflow: {}", processgraph.processgraphid);
     println!("Root processes: {:?}", processgraph.rootprocessids);
     println!("All processes: {:?}", processgraph.processids);
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Waiting for workflow completion...\n");
 
     loop {
-        let pg = colonies::get_processgraph(&processgraph.processgraphid, prvkey).await?;
+        let pg = colonyos::get_processgraph(&processgraph.processgraphid, prvkey).await?;
 
         match pg.state {
             s if s == SUCCESS => {
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Get details of each process
                 for pid in &pg.processids {
-                    let p = colonies::get_process(pid, prvkey).await?;
+                    let p = colonyos::get_process(pid, prvkey).await?;
                     println!(
                         "  {} ({}): {:?}",
                         p.spec.nodename,
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Show which processes failed
                 for pid in &pg.processids {
-                    let p = colonies::get_process(pid, prvkey).await?;
+                    let p = colonyos::get_process(pid, prvkey).await?;
                     if p.state == FAILED {
                         println!("  {} failed: {:?}", p.spec.nodename, p.errors);
                     }
@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Clean up
-    colonies::remove_processgraph(&processgraph.processgraphid, prvkey).await?;
+    colonyos::remove_processgraph(&processgraph.processgraphid, prvkey).await?;
     println!("\nWorkflow removed");
 
     Ok(())

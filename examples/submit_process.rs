@@ -4,7 +4,7 @@
 //!
 //! Run with: cargo run --example submit_process
 
-use colonies::core::{FunctionSpec, SUCCESS, FAILED, WAITING, RUNNING};
+use colonyos::core::{FunctionSpec, SUCCESS, FAILED, WAITING, RUNNING};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     spec.env.insert("MY_VAR".to_string(), "my_value".to_string());
 
     // Submit the process
-    let process = colonies::submit(&spec, prvkey).await?;
+    let process = colonyos::submit(&spec, prvkey).await?;
     println!("Submitted process: {}", process.processid);
     println!("Function: {}", spec.funcname);
     println!("Args: {:?}", spec.args);
@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut last_state = WAITING;
 
     loop {
-        let p = colonies::get_process(&process.processid, prvkey).await?;
+        let p = colonyos::get_process(&process.processid, prvkey).await?;
 
         // Print state changes
         if p.state != last_state {
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Clean up - remove the process
-    colonies::remove_process(&process.processid, prvkey).await?;
+    colonyos::remove_process(&process.processid, prvkey).await?;
     println!("\nProcess removed");
 
     Ok(())

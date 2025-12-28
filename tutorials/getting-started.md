@@ -50,7 +50,7 @@ tokio = { version = "1", features = ["full"] }
 ColonyOS uses cryptographic keys for identity and authentication:
 
 ```rust
-use colonies::crypto;
+use colonyos::crypto;
 
 fn main() {
     // Generate a new private key
@@ -78,7 +78,7 @@ let colony_prvkey = "ba949fa134981372d6da62b6a56f336ab4d843b22c02a4257dcf7d0d730
 Replace `src/main.rs` with:
 
 ```rust
-use colonies::core::{Executor, Log};
+use colonyos::core::{Executor, Log};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -88,7 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let colony_prvkey = "ba949fa134981372d6da62b6a56f336ab4d843b22c02a4257dcf7d0d73097514";
 
     // Step 1: Generate executor ID from private key
-    let executor_id = colonies::crypto::gen_id(executor_prvkey);
+    let executor_id = colonyos::crypto::gen_id(executor_prvkey);
     println!("Executor ID: {}", executor_id);
 
     // Step 2: Create the executor
@@ -100,13 +100,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Step 3: Register with the server
-    match colonies::add_executor(&executor, executor_prvkey).await {
+    match colonyos::add_executor(&executor, executor_prvkey).await {
         Ok(e) => println!("Registered executor: {}", e.executorname),
         Err(e) => println!("Registration note: {}", e),
     }
 
     // Step 4: Approve the executor (requires colony owner key)
-    match colonies::approve_executor(colonyname, "my-rust-executor", colony_prvkey).await {
+    match colonyos::approve_executor(colonyname, "my-rust-executor", colony_prvkey).await {
         Ok(_) => println!("Executor approved!"),
         Err(e) => println!("Approval note: {}", e),
     }
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 5: Main processing loop
     loop {
         // Wait for a process (10 second timeout)
-        match colonies::assign(colonyname, 10, executor_prvkey).await {
+        match colonyos::assign(colonyname, 10, executor_prvkey).await {
             Ok(process) => {
                 println!("Got process: {} ({})", process.processid, process.spec.funcname);
 
@@ -125,12 +125,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match process.spec.funcname.as_str() {
                     "hello" => {
                         println!("  -> Saying hello!");
-                        colonies::set_output(
+                        colonyos::set_output(
                             &process.processid,
                             vec!["Hello from Rust!".to_string()],
                             executor_prvkey,
                         ).await?;
-                        colonies::close(&process.processid, executor_prvkey).await?;
+                        colonyos::close(&process.processid, executor_prvkey).await?;
                         println!("  -> Done!");
                     }
                     "echo" => {
@@ -138,17 +138,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .cloned()
                             .unwrap_or_else(|| "no message".to_string());
                         println!("  -> Echoing: {}", msg);
-                        colonies::set_output(
+                        colonyos::set_output(
                             &process.processid,
                             vec![msg],
                             executor_prvkey,
                         ).await?;
-                        colonies::close(&process.processid, executor_prvkey).await?;
+                        colonyos::close(&process.processid, executor_prvkey).await?;
                         println!("  -> Done!");
                     }
                     _ => {
                         println!("  -> Unknown function, failing");
-                        colonies::fail(&process.processid, executor_prvkey).await?;
+                        colonyos::fail(&process.processid, executor_prvkey).await?;
                     }
                 }
             }
@@ -207,7 +207,7 @@ Got process: abc123... (hello)
 You can also submit processes from Rust:
 
 ```rust
-use colonies::core::FunctionSpec;
+use colonyos::core::FunctionSpec;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -218,16 +218,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     spec.args = vec!["Hello from Rust client!".to_string()];
 
     // Submit
-    let process = colonies::submit(&spec, prvkey).await?;
+    let process = colonyos::submit(&spec, prvkey).await?;
     println!("Submitted: {}", process.processid);
 
     // Wait for completion
     loop {
-        let p = colonies::get_process(&process.processid, prvkey).await?;
-        if p.state == colonies::core::SUCCESS {
+        let p = colonyos::get_process(&process.processid, prvkey).await?;
+        if p.state == colonyos::core::SUCCESS {
             println!("Output: {:?}", p.output);
             break;
-        } else if p.state == colonies::core::FAILED {
+        } else if p.state == colonyos::core::FAILED {
             println!("Failed!");
             break;
         }
@@ -243,7 +243,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Executors can add logs that are visible via the CLI:
 
 ```rust
-use colonies::core::Log;
+use colonyos::core::Log;
 
 // Inside your process handler:
 let log = Log {
@@ -253,7 +253,7 @@ let log = Log {
     message: "Starting to process...".to_string(),
     timestamp: 0,  // Server will set this
 };
-colonies::add_log(&log, executor_prvkey).await?;
+colonyos::add_log(&log, executor_prvkey).await?;
 ```
 
 View logs with:
@@ -267,7 +267,7 @@ colonies log get -e my-rust-executor
 Create a workflow with dependencies:
 
 ```rust
-use colonies::core::{FunctionSpec, WorkflowSpec};
+use colonyos::core::{FunctionSpec, WorkflowSpec};
 
 let mut step1 = FunctionSpec::new("echo", "cli", "dev");
 step1.nodename = "step1".to_string();
@@ -283,7 +283,7 @@ let workflow = WorkflowSpec {
     functionspecs: vec![step1, step2],
 };
 
-let pg = colonies::submit_workflow(&workflow, prvkey).await?;
+let pg = colonyos::submit_workflow(&workflow, prvkey).await?;
 println!("Workflow: {}", pg.processgraphid);
 ```
 

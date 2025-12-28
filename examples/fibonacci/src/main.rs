@@ -1,4 +1,4 @@
-use colonies;
+use colonyos;
 use tokio::time::{sleep, Duration};
 
 fn fib(n: i64) -> i64 {
@@ -18,7 +18,7 @@ async fn main() {
 
     loop {
         println!("trying to get an assignment");
-        let assigned_process = colonies::assign(&colonyname, 10, &executorprvkey).await;
+        let assigned_process = colonyos::assign(&colonyname, 10, &executorprvkey).await;
         let assigned_process = match assigned_process {
             Ok(process) => process,
             Err(err) => {
@@ -42,14 +42,14 @@ async fn main() {
                 //println!("{}", assigned_process.spec.args);
                 let f = fib(45);
                 println!("fibonacci of {} is {}", 40, f);
-                let res = colonies::close(&assigned_process.processid, executorprvkey).await;
+                let res = colonyos::close(&assigned_process.processid, executorprvkey).await;
                 if res.is_err() {
                     println!("failed to close process");
                 }
             }
             _ => {
                 println!("invalid function name");
-                let res = colonies::fail(&assigned_process.processid, executorprvkey).await;
+                let res = colonyos::fail(&assigned_process.processid, executorprvkey).await;
                 if res.is_err() {
                     println!("failed to fail process");
                 }

@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-colonies = { path = "../../", version = "0.0.1" }
+colonyos = { path = "../../", version = "0.0.1" }

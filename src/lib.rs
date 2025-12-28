@@ -5,7 +5,7 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use colonies::{core, submit, assign, close};
+//! use colonyos::{core, submit, assign, close};
 //!
 //! #[tokio::main]
 //! async fn main() {
