@@ -8,25 +8,41 @@ repository = "https://github.com/colonyos/rust"
 keywords = ["colonies", "colonyos", "distributed", "computing"]
 
 [lib]
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["native"]
+native = []
+wasm = ["wasm-bindgen", "wasm-bindgen-futures"]
 
 [dependencies]
 # Cryptography
 sha3 = "0.10"
 hex = "0.4"
-rand = "0.8"
 k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# HTTP/Async
+# Encoding
+base64 = "0.21"
+
+# WASM support (optional)
+wasm-bindgen = { version = "0.2.88", optional = true }
+wasm-bindgen-futures = { version = "0.4.38", optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Native dependencies
+rand = "0.8"
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 tokio = { version = "1", features = ["full"] }
 
-# Encoding
-base64 = "0.21"
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# WASM dependencies
+rand = { version = "0.8", features = ["getrandom"] }
+getrandom = { version = "0.2", features = ["js"] }
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
 
 [dev-dependencies]
 tokio-test = "0.4"

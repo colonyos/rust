@@ -13,6 +13,7 @@ Rust SDK for [ColonyOS](https://github.com/colonyos/colonies) - build distribute
 - Async/await support with Tokio
 - secp256k1 ECDSA cryptography with SHA3-256 hashing
 - Full ColonyOS API support
+- WebAssembly (WASM) support for browser-based executors
 
 ## Installation
 
@@ -20,8 +21,19 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-colonies = "0.1"
+colonyos = "0.1"
 tokio = { version = "1", features = ["full"] }
+```
+
+### WASM Support
+
+For WebAssembly targets, use the `wasm` feature:
+
+```toml
+[dependencies]
+colonyos = { version = "0.1", default-features = false, features = ["wasm"] }
+wasm-bindgen = "0.2.88"
+wasm-bindgen-futures = "0.4.38"
 ```
 
 ## Quick Start
@@ -214,10 +226,12 @@ See the [examples](examples/) directory:
 - `examples/simple_executor.rs` - Basic executor implementation
 - `examples/submit_process.rs` - Submit and monitor a process
 - `examples/workflow.rs` - Submit a workflow with dependencies
+- `examples/wasm/` - WASM executor that runs in the browser
 
-## Tutorial
+## Tutorials
 
-See [docs/getting-started.md](docs/getting-started.md) for a step-by-step guide.
+- [Getting Started](docs/getting-started.md) - Step-by-step guide to building your first executor
+- [WASM Executor](docs/wasm-executor.md) - Building a browser-based executor with WebAssembly
 
 ## License
 
