@@ -2,10 +2,14 @@
 name = "colonyos"
 version = "0.1.0"
 edition = "2021"
-description = "Rust SDK for ColonyOS"
+description = "Rust SDK for ColonyOS - build distributed applications with executors that can run anywhere"
 license = "MIT"
 repository = "https://github.com/colonyos/rust"
-keywords = ["colonies", "colonyos", "distributed", "computing"]
+homepage = "https://colonyos.io"
+documentation = "https://docs.rs/colonyos"
+readme = "README.md"
+keywords = ["colonies", "colonyos", "distributed", "computing", "orchestration"]
+categories = ["api-bindings", "asynchronous", "web-programming"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
