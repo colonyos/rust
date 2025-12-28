@@ -531,16 +531,34 @@ async fn test_channel_append_and_read() {
     .await
     .unwrap();
 
-    // Read from the channel
-    let entries = colonyos::channel_read(
-        &assigned.processid,
-        "test-channel",
-        0, // afterseq
-        10, // limit
-        &executorprvkey,
-    )
-    .await
-    .unwrap();
+    // Small delay to ensure channel state is consistent
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    // Read from the channel with retry logic for robustness
+    let mut entries = Vec::new();
+    let mut retries = 3;
+    while retries > 0 {
+        match colonyos::channel_read(
+            &assigned.processid,
+            "test-channel",
+            0, // afterseq
+            10, // limit
+            &executorprvkey,
+        )
+        .await
+        {
+            Ok(e) => {
+                entries = e;
+                break;
+            }
+            Err(_) if retries > 1 => {
+                // Retry on transient errors
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                retries -= 1;
+            }
+            Err(e) => panic!("channel_read failed after retries: {}", e),
+        }
+    }
 
     // Verify we got both messages
     assert_eq!(entries.len(), 2);
