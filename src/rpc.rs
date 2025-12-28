@@ -482,7 +482,7 @@ pub(super) fn compose_remove_all_processes_rpcmsg(colonyname: &str, state: i32, 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct SetOutputRPCMsg {
     pub processid: String,
-    pub output: Vec<String>,
+    pub out: Vec<String>,
     pub msgtype: String,
 }
 
@@ -490,7 +490,7 @@ pub(super) fn compose_set_output_rpcmsg(processid: &str, output: Vec<String>, pr
     let payloadtype = "setoutputmsg";
     let msg = SetOutputRPCMsg {
         processid: processid.to_owned(),
-        output,
+        out: output,
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&msg).unwrap();
@@ -502,14 +502,14 @@ pub(super) fn compose_set_output_rpcmsg(processid: &str, output: Vec<String>, pr
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct SubmitWorkflowRPCMsg {
-    pub workflowspec: WorkflowSpec,
+    pub spec: WorkflowSpec,
     pub msgtype: String,
 }
 
 pub(super) fn compose_submit_workflow_rpcmsg(workflowspec: &WorkflowSpec, prvkey: &str) -> String {
     let payloadtype = "submitworkflowspecmsg";
     let msg = SubmitWorkflowRPCMsg {
-        workflowspec: workflowspec.clone(),
+        spec: workflowspec.clone(),
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&msg).unwrap();
@@ -663,17 +663,18 @@ pub(super) fn compose_get_logs_rpcmsg(
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct ChannelAppendRPCMsg {
     pub processid: String,
-    pub channelname: String,
-    pub data: String,
-    #[serde(rename = "type")]
-    pub msgtype_field: String,
+    pub name: String,
+    pub sequence: i64,
     pub inreplyto: i64,
+    pub payload: Vec<u8>,
+    pub payloadtype: String,
     pub msgtype: String,
 }
 
 pub(super) fn compose_channel_append_rpcmsg(
     processid: &str,
     channelname: &str,
+    sequence: i64,
     data: &str,
     data_type: &str,
     inreplyto: i64,
@@ -682,10 +683,11 @@ pub(super) fn compose_channel_append_rpcmsg(
     let payloadtype = "channelappendmsg";
     let msg = ChannelAppendRPCMsg {
         processid: processid.to_owned(),
-        channelname: channelname.to_owned(),
-        data: data.to_owned(),
-        msgtype_field: data_type.to_owned(),
+        name: channelname.to_owned(),
+        sequence,
         inreplyto,
+        payload: data.as_bytes().to_vec(),
+        payloadtype: data_type.to_owned(),
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&msg).unwrap();
@@ -698,25 +700,25 @@ pub(super) fn compose_channel_append_rpcmsg(
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct ChannelReadRPCMsg {
     pub processid: String,
-    pub channelname: String,
-    pub start: i64,
-    pub count: i32,
+    pub name: String,
+    pub afterseq: i64,
+    pub limit: i32,
     pub msgtype: String,
 }
 
 pub(super) fn compose_channel_read_rpcmsg(
     processid: &str,
     channelname: &str,
-    start: i64,
-    count: i32,
+    afterseq: i64,
+    limit: i32,
     prvkey: &str,
 ) -> String {
     let payloadtype = "channelreadmsg";
     let msg = ChannelReadRPCMsg {
         processid: processid.to_owned(),
-        channelname: channelname.to_owned(),
-        start,
-        count,
+        name: channelname.to_owned(),
+        afterseq,
+        limit,
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&msg).unwrap();
@@ -733,7 +735,7 @@ struct GetStatisticsRPCMsg {
 }
 
 pub(super) fn compose_get_statistics_rpcmsg(colonyname: &str, prvkey: &str) -> String {
-    let payloadtype = "getstatisticsmsg";
+    let payloadtype = "getcolonystatsmsg";
     let msg = GetStatisticsRPCMsg {
         colonyname: colonyname.to_owned(),
         msgtype: payloadtype.to_owned(),
