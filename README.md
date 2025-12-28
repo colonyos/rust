@@ -31,7 +31,7 @@ For WebAssembly targets, use the `wasm` feature:
 
 ```toml
 [dependencies]
-colonyos = { version = "0.1", default-features = false, features = ["wasm"] }
+colonyos = { version = "1.0", default-features = false, features = ["wasm"] }
 wasm-bindgen = "0.2.88"
 wasm-bindgen-futures = "0.4.38"
 ```
