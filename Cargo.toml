@@ -1,6 +1,6 @@
 [package]
 name = "colonyos"
-version = "0.1.0"
+version = "1.0.2"
 edition = "2021"
 description = "Rust SDK for ColonyOS - build distributed applications with executors that can run anywhere"
 license = "MIT"
