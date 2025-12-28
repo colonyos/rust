@@ -1079,4 +1079,426 @@ mod tests {
         assert_eq!(ws.colonyname, "");
         assert!(ws.functionspecs.is_empty());
     }
+
+    #[test]
+    fn test_channel_entry_payload_bytes() {
+        // Test base64 encoded payload
+        let entry = ChannelEntry {
+            sequence: 1,
+            payload: "SGVsbG8gV29ybGQ=".to_string(), // "Hello World" in base64
+            msgtype: "data".to_string(),
+            inreplyto: 0,
+            timestamp: "".to_string(),
+            senderid: "".to_string(),
+        };
+        let bytes = entry.payload_bytes();
+        assert_eq!(bytes, b"Hello World");
+    }
+
+    #[test]
+    fn test_channel_entry_payload_bytes_empty() {
+        let entry = ChannelEntry::default();
+        let bytes = entry.payload_bytes();
+        assert!(bytes.is_empty());
+    }
+
+    #[test]
+    fn test_channel_entry_invalid_base64() {
+        let entry = ChannelEntry {
+            sequence: 1,
+            payload: "not valid base64!!!".to_string(),
+            msgtype: "data".to_string(),
+            inreplyto: 0,
+            timestamp: "".to_string(),
+            senderid: "".to_string(),
+        };
+        // Should return empty vec on invalid base64
+        let bytes = entry.payload_bytes();
+        assert!(bytes.is_empty());
+    }
+
+    #[test]
+    fn test_channel_entry_default() {
+        let entry = ChannelEntry::default();
+        assert_eq!(entry.sequence, 0);
+        assert_eq!(entry.payload, "");
+        assert_eq!(entry.msgtype, "");
+        assert_eq!(entry.inreplyto, 0);
+        assert_eq!(entry.timestamp, "");
+        assert_eq!(entry.senderid, "");
+    }
+
+    #[test]
+    fn test_attribute_types() {
+        let attr_in = Attribute {
+            attributetype: IN,
+            ..Attribute::new("colony", "process", "key", "value")
+        };
+        assert_eq!(attr_in.attributetype, 0);
+
+        let attr_err = Attribute {
+            attributetype: ERR,
+            ..Attribute::new("colony", "process", "key", "error")
+        };
+        assert_eq!(attr_err.attributetype, 2);
+
+        let attr_env = Attribute {
+            attributetype: ENV,
+            ..Attribute::new("colony", "process", "key", "env_val")
+        };
+        assert_eq!(attr_env.attributetype, 4);
+    }
+
+    #[test]
+    fn test_executor_states() {
+        let mut executor = Executor::new("name", "id", "cli", "colony");
+        executor.state = PENDING;
+        assert_eq!(executor.state, 0);
+
+        executor.state = APPROVED;
+        assert_eq!(executor.state, 1);
+
+        executor.state = REJECTED;
+        assert_eq!(executor.state, 2);
+    }
+
+    #[test]
+    fn test_process_states() {
+        let process_json_waiting = r#"{"processid": "p1", "state": 0, "spec": {"funcname": "test", "conditions": {}}}"#;
+        let p: Process = serde_json::from_str(process_json_waiting).unwrap();
+        assert_eq!(p.state, WAITING);
+
+        let process_json_success = r#"{"processid": "p2", "state": 2, "spec": {"funcname": "test", "conditions": {}}}"#;
+        let p: Process = serde_json::from_str(process_json_success).unwrap();
+        assert_eq!(p.state, SUCCESS);
+
+        let process_json_failed = r#"{"processid": "p3", "state": 3, "spec": {"funcname": "test", "conditions": {}}}"#;
+        let p: Process = serde_json::from_str(process_json_failed).unwrap();
+        assert_eq!(p.state, FAILED);
+    }
+
+    #[test]
+    fn test_functionspec_with_channels() {
+        let mut spec = FunctionSpec::new("func", "cli", "colony");
+        spec.channels.push("input".to_string());
+        spec.channels.push("output".to_string());
+
+        let json = serde_json::to_string(&spec).unwrap();
+        let parsed: FunctionSpec = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.channels.len(), 2);
+        assert_eq!(parsed.channels[0], "input");
+        assert_eq!(parsed.channels[1], "output");
+    }
+
+    #[test]
+    fn test_functionspec_with_nodename() {
+        let mut spec = FunctionSpec::new("func", "cli", "colony");
+        spec.nodename = "step1".to_string();
+        spec.label = "Step One".to_string();
+
+        let json = serde_json::to_string(&spec).unwrap();
+        let parsed: FunctionSpec = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.nodename, "step1");
+        assert_eq!(parsed.label, "Step One");
+    }
+
+    #[test]
+    fn test_conditions_with_gpu() {
+        let mut conditions = Conditions::new("colony", "cli");
+        conditions.gpu.name = "NVIDIA".to_string();
+        conditions.gpu.count = 2;
+        conditions.gpu.mem = "16GB".to_string();
+
+        let json = serde_json::to_string(&conditions).unwrap();
+        let parsed: Conditions = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.gpu.name, "NVIDIA");
+        assert_eq!(parsed.gpu.count, 2);
+        assert_eq!(parsed.gpu.mem, "16GB");
+    }
+
+    #[test]
+    fn test_process_with_output_and_errors() {
+        // Note: Process uses "in" and "out" for JSON field names
+        let json = r#"{
+            "processid": "proc-123",
+            "state": 3,
+            "spec": {"funcname": "test", "conditions": {}},
+            "out": ["result1", "result2"],
+            "errors": ["error1"]
+        }"#;
+
+        let process: Process = serde_json::from_str(json).unwrap();
+        assert_eq!(process.output.len(), 2);
+        assert_eq!(process.output[0], "result1");
+        assert_eq!(process.errors.len(), 1);
+        assert_eq!(process.errors[0], "error1");
+    }
+
+    #[test]
+    fn test_process_with_input() {
+        // Note: Process uses "in" for input field in JSON
+        let json = r#"{
+            "processid": "proc-123",
+            "state": 0,
+            "spec": {"funcname": "test", "conditions": {}},
+            "in": ["input1", "input2", "input3"]
+        }"#;
+
+        let process: Process = serde_json::from_str(json).unwrap();
+        assert_eq!(process.input.len(), 3);
+        assert_eq!(process.input[0], "input1");
+    }
+
+    #[test]
+    fn test_process_with_parents_and_children() {
+        let json = r#"{
+            "processid": "proc-123",
+            "state": 0,
+            "spec": {"funcname": "test", "conditions": {}},
+            "parents": ["parent1", "parent2"],
+            "children": ["child1"]
+        }"#;
+
+        let process: Process = serde_json::from_str(json).unwrap();
+        assert_eq!(process.parents.len(), 2);
+        assert_eq!(process.children.len(), 1);
+    }
+
+    #[test]
+    fn test_process_with_attributes() {
+        let json = r#"{
+            "processid": "proc-123",
+            "state": 0,
+            "spec": {"funcname": "test", "conditions": {}},
+            "attributes": [
+                {"key": "key1", "value": "value1", "attributetype": 0, "targetid": "proc-123", "targetcolonyname": "colony"},
+                {"key": "key2", "value": "value2", "attributetype": 1, "targetid": "proc-123", "targetcolonyname": "colony"}
+            ]
+        }"#;
+
+        let process: Process = serde_json::from_str(json).unwrap();
+        assert_eq!(process.attributes.len(), 2);
+        assert_eq!(process.attributes[0].key, "key1");
+        assert_eq!(process.attributes[1].attributetype, OUT);
+    }
+
+    #[test]
+    fn test_hardware_with_network() {
+        let json = r#"{
+            "model": "SuperComputer",
+            "nodes": 100,
+            "cpu": "AMD EPYC",
+            "cores": 128,
+            "mem": "1TB",
+            "storage": "100PB",
+            "platform": "HPC",
+            "architecture": "x86_64",
+            "network": ["InfiniBand", "Ethernet"]
+        }"#;
+
+        let hw: Hardware = serde_json::from_str(json).unwrap();
+        assert_eq!(hw.network.len(), 2);
+        assert_eq!(hw.network[0], "InfiniBand");
+        assert_eq!(hw.cores, 128);
+    }
+
+    #[test]
+    fn test_capabilities_with_hardware_and_software() {
+        let mut caps = Capabilities::default();
+        assert!(caps.is_empty());
+
+        caps.hardware.push(Hardware {
+            model: "Server".to_string(),
+            nodes: 1,
+            cpu: "Intel".to_string(),
+            cores: 64,
+            mem: "256GB".to_string(),
+            storage: "10TB".to_string(),
+            platform: "Cloud".to_string(),
+            architecture: "x86_64".to_string(),
+            network: vec!["Ethernet".to_string()],
+            gpu: GPU::default(),
+        });
+
+        caps.software.push(Software {
+            name: "Python".to_string(),
+            software_type: "Runtime".to_string(),
+            version: "3.11".to_string(),
+        });
+
+        assert!(!caps.is_empty());
+        assert_eq!(caps.hardware.len(), 1);
+        assert_eq!(caps.software.len(), 1);
+    }
+
+    #[test]
+    fn test_filesystem_with_dirs_and_snapshots() {
+        let json = r#"{
+            "mount": "/data",
+            "dirs": [
+                {"label": "input", "dir": "/data/input", "keepfiles": true, "onconflicts": {"onstart": {"keeplocal": true}, "onclose": {"keeplocal": false}}},
+                {"label": "output", "dir": "/data/output", "keepfiles": false, "onconflicts": {"onstart": {"keeplocal": false}, "onclose": {"keeplocal": true}}}
+            ],
+            "snapshots": [
+                {"snapshotid": "snap1", "label": "snapshot1", "dir": "/snap1", "keepfiles": true, "keepsnapshot": true},
+                {"snapshotid": "snap2", "label": "snapshot2", "dir": "/snap2", "keepfiles": false, "keepsnapshot": false}
+            ]
+        }"#;
+
+        let fs: Filesystem = serde_json::from_str(json).unwrap();
+        assert_eq!(fs.mount, "/data");
+        assert_eq!(fs.dirs.len(), 2);
+        assert_eq!(fs.snapshots.len(), 2);
+        assert_eq!(fs.dirs[0].label, "input");
+        assert_eq!(fs.snapshots[0].snapshotid, "snap1");
+    }
+
+    #[test]
+    fn test_blueprint_with_full_spec() {
+        let json = r#"{
+            "blueprintid": "bp-123",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "my-app",
+                "colonyname": "production"
+            },
+            "handler": {
+                "executortype": "docker-reconciler"
+            },
+            "spec": {
+                "replicas": 3,
+                "image": "myapp:latest"
+            },
+            "status": {
+                "ready": true,
+                "availableReplicas": 3
+            },
+            "generation": 5,
+            "reconciledgeneration": 4
+        }"#;
+
+        let bp: Blueprint = serde_json::from_str(json).unwrap();
+        assert_eq!(bp.generation, 5);
+        assert_eq!(bp.reconciledgeneration, 4);
+        assert_eq!(bp.spec.get("replicas"), Some(&serde_json::json!(3)));
+        assert_eq!(bp.status.get("ready"), Some(&serde_json::json!(true)));
+    }
+
+    #[test]
+    fn test_blueprint_definition_with_schemas() {
+        let json = r#"{
+            "name": "Deployment",
+            "colonyname": "production",
+            "kind": "Deployment",
+            "executortype": "docker-reconciler",
+            "specschema": {
+                "type": "object",
+                "properties": {"replicas": {"type": "number"}}
+            },
+            "statusschema": {
+                "type": "object"
+            }
+        }"#;
+
+        let def: BlueprintDefinition = serde_json::from_str(json).unwrap();
+        assert_eq!(def.name, "Deployment");
+        assert!(!def.specschema.is_empty());
+        assert!(!def.statusschema.is_empty());
+    }
+
+    #[test]
+    fn test_allocations_with_multiple_projects() {
+        let mut allocs = Allocations::default();
+        assert!(allocs.is_empty());
+
+        allocs.projects.insert("project1".to_string(), Project {
+            allocatedcpu: 100,
+            usedcpu: 50,
+            allocatedgpu: 10,
+            usedgpu: 5,
+            allocatedstorage: 1000,
+            usedstorage: 500,
+        });
+
+        allocs.projects.insert("project2".to_string(), Project {
+            allocatedcpu: 200,
+            usedcpu: 100,
+            allocatedgpu: 20,
+            usedgpu: 10,
+            allocatedstorage: 2000,
+            usedstorage: 1000,
+        });
+
+        assert!(!allocs.is_empty());
+        assert_eq!(allocs.projects.len(), 2);
+        assert_eq!(allocs.projects.get("project1").unwrap().allocatedcpu, 100);
+    }
+
+    #[test]
+    fn test_executor_with_full_details() {
+        let json = r#"{
+            "executorid": "exec-123",
+            "executorname": "worker-1",
+            "executortype": "docker",
+            "colonyname": "production",
+            "state": 1,
+            "commissiontime": "2025-01-01T00:00:00Z",
+            "lastheardfromtime": "2025-01-01T12:00:00Z",
+            "locationname": "us-west-2",
+            "blueprintid": "bp-456"
+        }"#;
+
+        let executor: Executor = serde_json::from_str(json).unwrap();
+        assert_eq!(executor.state, APPROVED);
+        assert_eq!(executor.locationname, "us-west-2");
+        assert_eq!(executor.blueprintid, "bp-456");
+        assert_eq!(executor.commissiontime, "2025-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_function_with_timing_stats() {
+        let json = r#"{
+            "functionid": "func-123",
+            "executorname": "worker",
+            "executortype": "cli",
+            "colonyname": "colony",
+            "funcname": "process",
+            "counter": 1000,
+            "minwaittime": 0.1,
+            "maxwaittime": 10.5,
+            "minexectime": 1.0,
+            "maxexectime": 60.0,
+            "avgwaittime": 2.5,
+            "avgexectime": 15.0
+        }"#;
+
+        let func: Function = serde_json::from_str(json).unwrap();
+        assert_eq!(func.counter, 1000);
+        assert_eq!(func.minwaittime, 0.1);
+        assert_eq!(func.maxwaittime, 10.5);
+        assert_eq!(func.avgexectime, 15.0);
+    }
+
+    #[test]
+    fn test_processgraph_full() {
+        let json = r#"{
+            "processgraphid": "pg-123",
+            "colonyname": "colony",
+            "state": 1,
+            "rootprocessids": ["root1"],
+            "processids": ["root1", "child1", "child2"],
+            "waitingids": [],
+            "runningids": ["root1"],
+            "successfulids": [],
+            "failedids": []
+        }"#;
+
+        let pg: ProcessGraph = serde_json::from_str(json).unwrap();
+        assert_eq!(pg.state, RUNNING);
+        assert_eq!(pg.rootprocessids.len(), 1);
+        assert_eq!(pg.processids.len(), 3);
+    }
 }
