@@ -1865,14 +1865,13 @@ mod tests {
     }
 
     #[test]
-    fn test_get_ws_url_http() {
+    fn test_get_ws_url() {
+        // Test HTTP -> WS conversion
         set_server_url("http://localhost:50080/api");
         let ws_url = get_ws_url();
         assert_eq!(ws_url, "ws://localhost:50080/pubsub");
-    }
 
-    #[test]
-    fn test_get_ws_url_https() {
+        // Test HTTPS -> WSS conversion
         set_server_url("https://secure.example.com:443/api");
         let ws_url = get_ws_url();
         assert_eq!(ws_url, "wss://secure.example.com:443/pubsub");
