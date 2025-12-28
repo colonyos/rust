@@ -1068,12 +1068,12 @@ mod tests {
     #[test]
     fn test_blueprint_definition_default() {
         let def = BlueprintDefinition::default();
-        assert_eq!(def.name, "");
-        assert_eq!(def.colonyname, "");
+        assert_eq!(def.blueprintdefinitionid, "");
         assert_eq!(def.kind, "");
-        assert_eq!(def.executortype, "");
-        assert!(def.specschema.is_empty());
-        assert!(def.statusschema.is_empty());
+        assert_eq!(def.metadata.name, "");
+        assert_eq!(def.metadata.colonyname, "");
+        assert_eq!(def.spec.names.kind, "");
+        assert_eq!(def.spec.handler.executor_type, "");
     }
 
     #[test]
@@ -1560,23 +1560,32 @@ mod tests {
     #[test]
     fn test_blueprint_definition_with_schemas() {
         let json = r#"{
-            "name": "Deployment",
-            "colonyname": "production",
             "kind": "Deployment",
-            "executortype": "docker-reconciler",
-            "specschema": {
-                "type": "object",
-                "properties": {"replicas": {"type": "number"}}
+            "metadata": {
+                "name": "deployment-def",
+                "colonyname": "production"
             },
-            "statusschema": {
-                "type": "object"
+            "spec": {
+                "names": {
+                    "kind": "Deployment",
+                    "singular": "deployment",
+                    "plural": "deployments"
+                },
+                "handler": {
+                    "executorType": "docker-reconciler"
+                },
+                "schema": {
+                    "type": "object",
+                    "properties": {"replicas": {"type": "number"}}
+                }
             }
         }"#;
 
         let def: BlueprintDefinition = serde_json::from_str(json).unwrap();
-        assert_eq!(def.name, "Deployment");
-        assert!(!def.specschema.is_empty());
-        assert!(!def.statusschema.is_empty());
+        assert_eq!(def.metadata.name, "deployment-def");
+        assert_eq!(def.spec.names.kind, "Deployment");
+        assert_eq!(def.spec.handler.executor_type, "docker-reconciler");
+        assert!(def.spec.schema.is_some());
     }
 
     #[test]

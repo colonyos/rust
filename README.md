@@ -236,6 +236,8 @@ See the [examples](examples/) directory:
 
 - [Getting Started](docs/getting-started.md) - Step-by-step guide to building your first executor
 - [WASM Executor](docs/wasm-executor.md) - Building a browser-based executor with WebAssembly
+- [Channels](docs/channels.md) - Real-time bidirectional communication with streaming
+- [Blueprints](docs/blueprints.md) - Declarative state management with reconcilers
 
 ## License
 
