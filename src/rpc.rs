@@ -1148,3 +1148,404 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
 
     Ok(s)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::{Colony, Executor, Function, FunctionSpec, Conditions, Attribute, Log, WorkflowSpec};
+
+    const TEST_PRVKEY: &str = "ddf7f7791208083b6a9ed975a72684f6406a269cfa36f1b1c32045c0a71fff05";
+
+    #[test]
+    fn test_rpc_error_creation() {
+        let err = RPCError::new("test error", false);
+        assert_eq!(err.details, "test error");
+        assert!(!err.conn_err());
+
+        let conn_err = RPCError::new("connection failed", true);
+        assert!(conn_err.conn_err());
+    }
+
+    #[test]
+    fn test_rpc_error_display() {
+        let err = RPCError::new("test error message", false);
+        assert_eq!(format!("{}", err), "test error message");
+    }
+
+    #[test]
+    fn test_rpc_error_description() {
+        let err = RPCError::new("error details", false);
+        use std::error::Error;
+        assert_eq!(err.description(), "error details");
+    }
+
+    #[test]
+    fn test_compose_rpcmsg_structure() {
+        let rpcmsg = compose_rpcmsg(
+            "testmsg".to_string(),
+            r#"{"test":"data"}"#.to_string(),
+            TEST_PRVKEY.to_string(),
+        );
+        assert_eq!(rpcmsg.payloadtype, "testmsg");
+        assert!(!rpcmsg.payload.is_empty());
+        assert!(!rpcmsg.signature.is_empty());
+
+        // Verify payload is base64 encoded
+        let decoded = BASE64.decode(&rpcmsg.payload).unwrap();
+        let decoded_str = String::from_utf8(decoded).unwrap();
+        assert_eq!(decoded_str, r#"{"test":"data"}"#);
+    }
+
+    #[test]
+    fn test_compose_add_colony_rpcmsg() {
+        let colony = Colony::new("colony-id", "test-colony");
+        let msg = compose_add_colony_rpcmsg(&colony, &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "addcolonymsg");
+        assert!(!parsed["payload"].as_str().unwrap().is_empty());
+        assert!(!parsed["signature"].as_str().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_compose_remove_colony_rpcmsg() {
+        let msg = compose_remove_colony_rpcmsg(&"test-colony".to_string(), &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removecolonymsg");
+    }
+
+    #[test]
+    fn test_compose_add_executor_rpcmsg() {
+        let executor = Executor::new("exec-name", "exec-id", "cli", "test-colony");
+        let msg = compose_add_executor_rpcmsg(&executor, &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "addexecutormsg");
+    }
+
+    #[test]
+    fn test_compose_approve_executor_rpcmsg() {
+        let msg = compose_approve_executor_rpcmsg(
+            &"test-colony".to_string(),
+            &"test-executor".to_string(),
+            &TEST_PRVKEY.to_string(),
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "approveexecutormsg");
+    }
+
+    #[test]
+    fn test_compose_reject_executor_rpcmsg() {
+        let msg = compose_reject_executor_rpcmsg("test-colony", "test-executor", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "rejectexecutormsg");
+    }
+
+    #[test]
+    fn test_compose_remove_executor_rpcmsg() {
+        let msg = compose_remove_executor_rpcmsg("test-colony", "test-executor", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removeexecutormsg");
+    }
+
+    #[test]
+    fn test_compose_get_executor_rpcmsg() {
+        let msg = compose_get_executor_rpcmsg("test-colony", "test-executor", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getexecutormsg");
+    }
+
+    #[test]
+    fn test_compose_get_executors_rpcmsg() {
+        let msg = compose_get_executors_rpcmsg("test-colony", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getexecutorsmsg");
+    }
+
+    #[test]
+    fn test_compose_submit_functionspec_rpcmsg() {
+        let spec = FunctionSpec::new("test-func", "cli", "test-colony");
+        let msg = compose_submit_functionspec_rpcmsg(&spec, &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "submitfuncspecmsg");
+    }
+
+    #[test]
+    fn test_compose_assign_process_rpcmsg() {
+        let msg = compose_assign_process_rpcmsg(&"test-colony".to_string(), 30, &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "assignprocessmsg");
+    }
+
+    #[test]
+    fn test_compose_close_process_rpcmsg() {
+        let msg = compose_close_process_rpcmsg(&"process-123".to_string(), &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "closesuccessfulmsg");
+    }
+
+    #[test]
+    fn test_compose_fail_process_rpcmsg() {
+        let msg = compose_fail_process_rpcmsg(&"process-123".to_string(), &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "closefailedmsg");
+    }
+
+    #[test]
+    fn test_compose_get_process_rpcmsg() {
+        let msg = compose_get_process_rpcmsg(&"process-123".to_string(), &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getprocessmsg");
+    }
+
+    #[test]
+    fn test_compose_get_processes_rpcmsg() {
+        let msg = compose_get_processes_rpcmsg(&"test-colony".to_string(), 100, 0, &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getprocessesmsg");
+    }
+
+    #[test]
+    fn test_compose_remove_process_rpcmsg() {
+        let msg = compose_remove_process_rpcmsg("process-123", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removeprocessmsg");
+    }
+
+    #[test]
+    fn test_compose_remove_all_processes_rpcmsg() {
+        let msg = compose_remove_all_processes_rpcmsg("test-colony", 0, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removeallprocessesmsg");
+    }
+
+    #[test]
+    fn test_compose_get_colony_rpcmsg() {
+        let msg = compose_get_colony_rpcmsg("test-colony", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getcolonymsg");
+    }
+
+    #[test]
+    fn test_compose_get_colonies_rpcmsg() {
+        let msg = compose_get_colonies_rpcmsg(TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getcoloniesmsg");
+    }
+
+    #[test]
+    fn test_compose_add_attr_rpcmsg() {
+        let attr = Attribute::new("test-colony", "process-123", "key", "value");
+        let msg = compose_add_attr_rpcmsg(&attr, &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "addattributemsg");
+    }
+
+    #[test]
+    fn test_compose_set_output_rpcmsg() {
+        let msg = compose_set_output_rpcmsg("process-123", vec!["out1".to_string()], TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "setoutputmsg");
+    }
+
+    #[test]
+    fn test_compose_submit_workflow_rpcmsg() {
+        let spec = FunctionSpec::new("test-func", "cli", "test-colony");
+        let workflow = WorkflowSpec {
+            colonyname: "test-colony".to_string(),
+            functionspecs: vec![spec],
+        };
+        let msg = compose_submit_workflow_rpcmsg(&workflow, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "submitworkflowspecmsg");
+    }
+
+    #[test]
+    fn test_compose_get_processgraph_rpcmsg() {
+        let msg = compose_get_processgraph_rpcmsg("graph-123", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getprocessgraphmsg");
+    }
+
+    #[test]
+    fn test_compose_get_processgraphs_rpcmsg() {
+        let msg = compose_get_processgraphs_rpcmsg("test-colony", 100, 0, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getprocessgraphsmsg");
+    }
+
+    #[test]
+    fn test_compose_remove_processgraph_rpcmsg() {
+        let msg = compose_remove_processgraph_rpcmsg("graph-123", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removeprocessgraphmsg");
+    }
+
+    #[test]
+    fn test_compose_remove_all_processgraphs_rpcmsg() {
+        let msg = compose_remove_all_processgraphs_rpcmsg("test-colony", 0, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removeallprocessgraphsmsg");
+    }
+
+    #[test]
+    fn test_compose_add_log_rpcmsg() {
+        let log = Log {
+            processid: "process-123".to_string(),
+            colonyname: "test-colony".to_string(),
+            executorname: "test-executor".to_string(),
+            message: "test message".to_string(),
+            timestamp: 0,
+        };
+        let msg = compose_add_log_rpcmsg(&log, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "addlogmsg");
+    }
+
+    #[test]
+    fn test_compose_get_logs_rpcmsg() {
+        let msg = compose_get_logs_rpcmsg("test-colony", "process-123", "executor", 100, 0, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getlogsmsg");
+    }
+
+    #[test]
+    fn test_compose_channel_append_rpcmsg() {
+        let msg = compose_channel_append_rpcmsg("process-123", "channel1", 1, "hello", "", 0, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "channelappendmsg");
+    }
+
+    #[test]
+    fn test_compose_channel_read_rpcmsg() {
+        let msg = compose_channel_read_rpcmsg("process-123", "channel1", 0, 100, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "channelreadmsg");
+    }
+
+    #[test]
+    fn test_compose_get_statistics_rpcmsg() {
+        let msg = compose_get_statistics_rpcmsg("test-colony", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getcolonystatsmsg");
+    }
+
+    #[test]
+    fn test_compose_add_function_rpcmsg() {
+        let func = Function {
+            functionid: "".to_string(),
+            funcname: "test-func".to_string(),
+            executorname: "test-executor".to_string(),
+            executortype: "cli".to_string(),
+            colonyname: "test-colony".to_string(),
+            counter: 0,
+            minwaittime: 0.0,
+            maxwaittime: 0.0,
+            minexectime: 0.0,
+            maxexectime: 0.0,
+            avgwaittime: 0.0,
+            avgexectime: 0.0,
+        };
+        let msg = compose_add_function_rpcmsg(&func, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "addfunctionmsg");
+    }
+
+    #[test]
+    fn test_compose_get_functions_rpcmsg() {
+        let msg = compose_get_functions_rpcmsg("test-colony", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getfunctionsmsg");
+    }
+
+    #[test]
+    fn test_compose_get_functions_by_executor_rpcmsg() {
+        let msg = compose_get_functions_by_executor_rpcmsg("test-colony", "test-executor", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getfunctionsbyexecutormsg");
+    }
+
+    #[test]
+    fn test_compose_remove_function_rpcmsg() {
+        let msg = compose_remove_function_rpcmsg("func-123", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removefunctionmsg");
+    }
+
+    #[test]
+    fn test_compose_blueprint_definition_rpcmsgs() {
+        let def = BlueprintDefinition::default();
+
+        let msg = compose_add_blueprint_definition_rpcmsg(&def, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "addblueprintdefinitionmsg");
+
+        let msg = compose_get_blueprint_definition_rpcmsg("colony", "name", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getblueprintdefinitionmsg");
+
+        let msg = compose_get_blueprint_definitions_rpcmsg("colony", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getblueprintdefinitionsmsg");
+
+        let msg = compose_remove_blueprint_definition_rpcmsg("colony", "name", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removeblueprintdefinitionmsg");
+    }
+
+    #[test]
+    fn test_compose_blueprint_rpcmsgs() {
+        let bp = Blueprint::default();
+
+        let msg = compose_add_blueprint_rpcmsg(&bp, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "addblueprintmsg");
+
+        let msg = compose_get_blueprint_rpcmsg("colony", "name", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getblueprintmsg");
+
+        let msg = compose_get_blueprints_rpcmsg("colony", "kind", "location", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "getblueprintsmsg");
+
+        let msg = compose_update_blueprint_rpcmsg(&bp, true, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "updateblueprintmsg");
+
+        let msg = compose_remove_blueprint_rpcmsg("colony", "name", TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "removeblueprintmsg");
+    }
+
+    #[test]
+    fn test_compose_update_blueprint_status_rpcmsg() {
+        let mut status = HashMap::new();
+        status.insert("key".to_string(), serde_json::json!("value"));
+        let msg = compose_update_blueprint_status_rpcmsg("colony", "name", status, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "updateblueprintstatusmsg");
+    }
+
+    #[test]
+    fn test_compose_reconcile_blueprint_rpcmsg() {
+        let msg = compose_reconcile_blueprint_rpcmsg("colony", "name", true, TEST_PRVKEY);
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "reconcileblueprintmsg");
+    }
+
+    #[test]
+    fn test_rpcmsg_payload_decoding() {
+        let colony = Colony::new("id", "name");
+        let msg = compose_add_colony_rpcmsg(&colony, &TEST_PRVKEY.to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+
+        // Decode payload and verify structure
+        let payload_b64 = parsed["payload"].as_str().unwrap();
+        let payload_bytes = BASE64.decode(payload_b64).unwrap();
+        let payload_str = String::from_utf8(payload_bytes).unwrap();
+        let payload_json: serde_json::Value = serde_json::from_str(&payload_str).unwrap();
+
+        assert_eq!(payload_json["msgtype"], "addcolonymsg");
+        assert_eq!(payload_json["colony"]["colonyid"], "id");
+        assert_eq!(payload_json["colony"]["name"], "name");
+    }
+}
