@@ -122,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## API Overview
 
-See [API.md](API.md) for the complete API reference.
+See [docs/API.md](docs/API.md) for the complete API reference.
 
 ### Colony Management
 - `add_colony`, `remove_colony`, `get_colony`, `get_colonies`
@@ -217,7 +217,7 @@ See the [examples](examples/) directory:
 
 ## Tutorial
 
-See [tutorials/getting-started.md](tutorials/getting-started.md) for a step-by-step guide.
+See [docs/tutorials/getting-started.md](docs/tutorials/getting-started.md) for a step-by-step guide.
 
 ## License
 
