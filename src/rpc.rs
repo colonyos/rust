@@ -1218,12 +1218,16 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
         Err(err) => return Err(RPCError::new(&err.to_string(), false)),
     };
 
-    let rpc_reply: RPCReplyMsg = serde_json::from_str(body.as_str()).unwrap();
-    let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
-    let s = String::from_utf8(buf).expect("valid byte array");
+    let rpc_reply: RPCReplyMsg = serde_json::from_str(body.as_str())
+        .map_err(|e| RPCError::new(&format!("Failed to parse response: {} - body: {}", e, body), false))?;
+    let buf = BASE64.decode(rpc_reply.payload.as_str())
+        .map_err(|e| RPCError::new(&format!("Failed to decode payload: {}", e), false))?;
+    let s = String::from_utf8(buf)
+        .map_err(|e| RPCError::new(&format!("Invalid UTF-8 in payload: {}", e), false))?;
 
     if status != 200 {
-        let failure: Failure = serde_json::from_str(s.as_str()).unwrap();
+        let failure: Failure = serde_json::from_str(s.as_str())
+            .map_err(|e| RPCError::new(&format!("Failed to parse error: {} - body: {}", e, s), false))?;
         return Err(RPCError::new(failure.message.as_str(), false));
     }
 
