@@ -352,7 +352,7 @@ println!("Workflow: {}", pg.processgraphid);
 
 ## Next Steps
 
-- See the [API Reference](../API.md) for all available functions
+- See the [API Reference](API.md) for all available functions
 - Check out the [examples](../examples/) directory
 - Read about [Blueprints](https://github.com/colonyos/colonies) for infrastructure reconciliation
 
