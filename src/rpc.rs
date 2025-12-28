@@ -662,13 +662,12 @@ pub(super) fn compose_get_logs_rpcmsg(
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct ChannelAppendRPCMsg {
+    pub msgtype: String,
     pub processid: String,
     pub name: String,
     pub sequence: i64,
     pub inreplyto: i64,
     pub payload: Vec<u8>,
-    pub payloadtype: String,
-    pub msgtype: String,
 }
 
 pub(super) fn compose_channel_append_rpcmsg(
@@ -676,19 +675,18 @@ pub(super) fn compose_channel_append_rpcmsg(
     channelname: &str,
     sequence: i64,
     data: &str,
-    data_type: &str,
+    _data_type: &str,
     inreplyto: i64,
     prvkey: &str,
 ) -> String {
     let payloadtype = "channelappendmsg";
     let msg = ChannelAppendRPCMsg {
+        msgtype: payloadtype.to_owned(),
         processid: processid.to_owned(),
         name: channelname.to_owned(),
         sequence,
         inreplyto,
         payload: data.as_bytes().to_vec(),
-        payloadtype: data_type.to_owned(),
-        msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&msg).unwrap();
     let rpcmsg = compose_rpcmsg(payloadtype.to_owned(), payload, prvkey.to_owned());

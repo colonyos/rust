@@ -217,7 +217,7 @@ See the [examples](examples/) directory:
 
 ## Tutorial
 
-See [docs/tutorials/getting-started.md](docs/tutorials/getting-started.md) for a step-by-step guide.
+See [docs/getting-started.md](docs/getting-started.md) for a step-by-step guide.
 
 ## License
 
