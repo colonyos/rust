@@ -2,7 +2,7 @@
 
 [![Rust](https://github.com/colonyos/rust/actions/workflows/rust.yml/badge.svg)](https://github.com/colonyos/rust/actions/workflows/rust.yml)
 [![codecov](https://codecov.io/gh/colonyos/rust/branch/main/graph/badge.svg)](https://codecov.io/gh/colonyos/rust)
-[![Crates.io](https://img.shields.io/crates/v/colonies.svg)](https://crates.io/crates/colonies)
+[![Crates.io](https://img.shields.io/crates/v/colonyos.svg)](https://crates.io/crates/colonyos)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Rust SDK for [ColonyOS](https://github.com/colonyos/colonies) - build distributed applications with executors that can run anywhere.
