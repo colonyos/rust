@@ -1,12 +1,10 @@
 use colonies;
 use colonies::core::Attribute;
 use colonies::core::Colony;
-use colonies::core::Conditions;
 use colonies::core::Executor;
 use colonies::core::FunctionSpec;
 use colonies::crypto;
 use random_string::generate;
-use std::collections::HashMap;
 
 
 const SERVER_PRVKEY: &str = "fcc79953d8a751bf41db661592dc34d30004b1a651ffa0725b03ac227641499d";
@@ -68,42 +66,12 @@ async fn create_test_executor(colonyname: &String, prvkey: &String) -> (Executor
 //     pub nodecount: i32,
 // }
 
-//
 fn create_test_function_spec(colonyname: &str) -> FunctionSpec {
-    let conditions = Conditions{
-        colonyname: colonyname.to_owned(),
-        executornames: vec![],
-        executortype: "test_executor_type".to_owned(),
-        dependencies: vec![],
-        nodes: -1,
-        cpu: "".to_owned(),
-        processes: -1,
-        processes_per_node: -1,
-        mem: "".to_owned(),
-        storage: "".to_owned(),
-        gpu: colonies::core::GPU{
-            name: "".to_owned(),
-            mem: "".to_owned(),
-            count: -1,
-            nodecount: -1,
-        },
-        walltime: -1,
-    };
-    let mut args: Vec<String> = Vec::new();
-    args.push("test_args".to_owned());
-    let mut env: HashMap<String, String> = HashMap::new();
-    env.insert("test_key".to_owned(), "test_value".to_owned());
-    FunctionSpec::new(
-        "test_name",
-        "test_func",
-        args,
-        -1,
-        -1,
-        -1,
-        conditions,
-        "label",
-        env,
-    )
+    let mut spec = FunctionSpec::new("test_func", "test_executor_type", colonyname);
+    spec.args = vec!["test_args".to_owned()];
+    spec.label = "label".to_owned();
+    spec.env.insert("test_key".to_owned(), "test_value".to_owned());
+    spec
 }
 
 #[tokio::test]
