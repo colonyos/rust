@@ -15,6 +15,28 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use std::sync::RwLock;
+
+// Global server configuration
+static SERVER_URL: RwLock<Option<String>> = RwLock::new(None);
+const DEFAULT_SERVER_URL: &str = "http://localhost:50080/api";
+
+/// Set the ColonyOS server URL for all API calls.
+///
+/// # Example
+/// ```
+/// colonyos::set_server_url("http://myserver:50080/api");
+/// ```
+pub fn set_server_url(url: &str) {
+    let mut server_url = SERVER_URL.write().unwrap();
+    *server_url = Some(url.to_string());
+}
+
+/// Get the current server URL.
+pub fn get_server_url() -> String {
+    let server_url = SERVER_URL.read().unwrap();
+    server_url.clone().unwrap_or_else(|| DEFAULT_SERVER_URL.to_string())
+}
 
 // add colony
 
@@ -153,8 +175,6 @@ pub(super) fn compose_submit_functionspec_rpcmsg(
 struct AssignProcessRPCMsg {
     pub colonyname: String,
     pub timeout: i32,
-    pub availablecpu: String,
-    pub availablemem: String,
     pub msgtype: String,
 }
 
@@ -166,8 +186,6 @@ pub(super) fn compose_assign_process_rpcmsg(
     let payloadtype = "assignprocessmsg";
     let assign_process_rpcmsg = AssignProcessRPCMsg {
         colonyname: colonyname.to_owned(),
-        availablecpu: "".to_owned(),
-        availablemem: "".to_owned(),
         timeout: timeout,
         msgtype: payloadtype.to_owned(),
     };
@@ -1114,10 +1132,10 @@ fn compose_rpcmsg(payloadtype: String, payload: String, prvkey: String) -> RPCMs
 }
 
 pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
+    let server_url = get_server_url();
     let client = reqwest::Client::new();
     let res = client
-        //.post("https://colonies.colonyos.io:443/api")
-        .post("http://localhost:50080/api")
+        .post(&server_url)
         .body(msg)
         .send()
         .await;
@@ -1228,6 +1246,40 @@ mod tests {
         );
         let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
         assert_eq!(parsed["payloadtype"], "approveexecutormsg");
+    }
+
+    #[test]
+    fn test_approve_executor_with_colony_key() {
+        // Use the colony key from docker-compose.env
+        let colony_key = "ba949fa134981372d6da62b6a56f336ab4d843b22c02a4257dcf7d0d73097514";
+        let colony_id = crypto::gen_id(colony_key);
+
+        // Create the approve message
+        let msg = compose_approve_executor_rpcmsg(
+            &"dev".to_string(),
+            &"wasm-executor".to_string(),
+            &colony_key.to_string(),
+        );
+
+        // Parse and extract the payload
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        let payload_b64 = parsed["payload"].as_str().unwrap();
+        let signature = parsed["signature"].as_str().unwrap();
+
+        // Decode payload and verify structure
+        let payload_bytes = BASE64.decode(payload_b64.as_bytes()).unwrap();
+        let payload_str = String::from_utf8(payload_bytes).unwrap();
+
+        println!("Colony ID: {}", colony_id);
+        println!("Payload JSON: {}", payload_str);
+        println!("Payload Base64: {}", payload_b64);
+        println!("Signature: {}", signature);
+
+        // Verify signature recovery
+        let recovered_id = crypto::recid(payload_b64, signature);
+        println!("Recovered ID: {}", recovered_id);
+
+        assert_eq!(colony_id, recovered_id, "Recovered ID should match colony ID");
     }
 
     #[test]

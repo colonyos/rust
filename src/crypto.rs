@@ -188,4 +188,28 @@ mod tests {
         let id = gen_id(prvkey);
         assert_eq!(expected_id, id);
     }
+
+    #[test]
+    fn test_colony_key() {
+        let colony_key = "ba949fa134981372d6da62b6a56f336ab4d843b22c02a4257dcf7d0d73097514";
+        let expected_id = "4787a5071856a4acf702b2ffcea422e3237a679c681314113d86139461290cf4";
+        let id = gen_id(colony_key);
+        println!("Colony ID: {}", id);
+        assert_eq!(expected_id, id);
+    }
+
+    #[test]
+    fn test_colony_key_signature() {
+        let colony_key = "ba949fa134981372d6da62b6a56f336ab4d843b22c02a4257dcf7d0d73097514";
+        let expected_id = "4787a5071856a4acf702b2ffcea422e3237a679c681314113d86139461290cf4";
+
+        // Test message similar to what RPC would produce
+        let msg = r#"{"colonyname":"dev","executorname":"wasm-executor","msgtype":"approveexecutormsg"}"#;
+        let sig = gen_signature(msg, colony_key);
+        let recovered = recid(msg, &sig);
+
+        println!("Expected: {}", expected_id);
+        println!("Recovered: {}", recovered);
+        assert_eq!(expected_id, recovered, "Signature recovery should match colony owner ID");
+    }
 }

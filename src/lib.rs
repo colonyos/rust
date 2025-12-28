@@ -20,6 +20,9 @@ pub mod core;
 pub mod crypto;
 pub mod rpc;
 
+// Re-export server configuration functions
+pub use rpc::{set_server_url, get_server_url};
+
 use serde_json::Value;
 use std::collections::HashMap;
 
