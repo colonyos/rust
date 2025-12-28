@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --example simple_executor
 
-use colonies::core::{Executor, Log};
+use colonyos::core::{Executor, Log};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,13 +15,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let colony_prvkey = "ba949fa134981372d6da62b6a56f336ab4d843b22c02a4257dcf7d0d73097514";
 
     // Generate executor ID from private key
-    let executor_id = colonies::crypto::gen_id(executor_prvkey);
+    let executor_id = colonyos::crypto::gen_id(executor_prvkey);
     println!("Executor ID: {}", executor_id);
 
     // Create and register the executor
     let executor = Executor::new("rust-executor", &executor_id, "cli", colonyname);
 
-    match colonies::add_executor(&executor, executor_prvkey).await {
+    match colonyos::add_executor(&executor, executor_prvkey).await {
         Ok(e) => println!("Registered executor: {}", e.executorname),
         Err(e) => {
             // Executor might already exist
@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Approve the executor (requires colony owner key)
-    match colonies::approve_executor(colonyname, "rust-executor", colony_prvkey).await {
+    match colonyos::approve_executor(colonyname, "rust-executor", colony_prvkey).await {
         Ok(_) => println!("Executor approved"),
         Err(e) => println!("Note: {}", e),
     }
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Main processing loop
     loop {
         // Wait for a process with 10 second timeout
-        match colonies::assign(colonyname, 10, executor_prvkey).await {
+        match colonyos::assign(colonyname, 10, executor_prvkey).await {
             Ok(process) => {
                 println!("\n=== Assigned Process ===");
                 println!("Process ID: {}", process.processid);
@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     message: format!("Processing function: {}", process.spec.funcname),
                     timestamp: 0,
                 };
-                let _ = colonies::add_log(&log, executor_prvkey).await;
+                let _ = colonyos::add_log(&log, executor_prvkey).await;
 
                 // Handle the function
                 match process.spec.funcname.as_str() {
@@ -72,9 +72,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Echoing: {}", output);
 
                         // Set output and close successfully
-                        colonies::set_output(&process.processid, vec![output], executor_prvkey)
+                        colonyos::set_output(&process.processid, vec![output], executor_prvkey)
                             .await?;
-                        colonies::close(&process.processid, executor_prvkey).await?;
+                        colonyos::close(&process.processid, executor_prvkey).await?;
                         println!("Process completed successfully");
                     }
                     "add" => {
@@ -86,16 +86,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             println!("{} + {} = {}", a, b, result);
 
-                            colonies::set_output(
+                            colonyos::set_output(
                                 &process.processid,
                                 vec![result.to_string()],
                                 executor_prvkey,
                             )
                             .await?;
-                            colonies::close(&process.processid, executor_prvkey).await?;
+                            colonyos::close(&process.processid, executor_prvkey).await?;
                             println!("Process completed successfully");
                         } else {
-                            colonies::fail(&process.processid, executor_prvkey).await?;
+                            colonyos::fail(&process.processid, executor_prvkey).await?;
                             println!("Process failed: add requires 2 arguments");
                         }
                     }
@@ -111,19 +111,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Sleeping for {} seconds...", seconds);
                         tokio::time::sleep(tokio::time::Duration::from_secs(seconds)).await;
 
-                        colonies::set_output(
+                        colonyos::set_output(
                             &process.processid,
                             vec![format!("Slept for {} seconds", seconds)],
                             executor_prvkey,
                         )
                         .await?;
-                        colonies::close(&process.processid, executor_prvkey).await?;
+                        colonyos::close(&process.processid, executor_prvkey).await?;
                         println!("Process completed successfully");
                     }
                     _ => {
                         // Unknown function
                         println!("Unknown function: {}", process.spec.funcname);
-                        colonies::fail(&process.processid, executor_prvkey).await?;
+                        colonyos::fail(&process.processid, executor_prvkey).await?;
                         println!("Process marked as failed");
                     }
                 }

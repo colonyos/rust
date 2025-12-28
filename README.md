@@ -31,7 +31,7 @@ tokio = { version = "1", features = ["full"] }
 An executor is a worker that pulls and executes tasks from a ColonyOS server:
 
 ```rust
-use colonies::core::{Attribute, Executor, FunctionSpec, WAITING};
+use colonyos::core::{Attribute, Executor, FunctionSpec, WAITING};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,15 +39,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prvkey = "ddf7f7791208083b6a9ed975a72684f6406a269cfa36f1b1c32045c0a71fff05";
 
     // Create and register executor
-    let executor_id = colonies::crypto::gen_id(prvkey);
+    let executor_id = colonyos::crypto::gen_id(prvkey);
     let executor = Executor::new("rust-executor", &executor_id, "cli", colonyname);
-    colonies::add_executor(&executor, prvkey).await?;
+    colonyos::add_executor(&executor, prvkey).await?;
 
     println!("Executor registered, waiting for processes...");
 
     loop {
         // Wait for a process (10 second timeout)
-        match colonies::assign(colonyname, 10, prvkey).await {
+        match colonyos::assign(colonyname, 10, prvkey).await {
             Ok(process) => {
                 println!("Assigned process: {}", process.processid);
 
@@ -57,12 +57,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let output = process.spec.args.get(0)
                             .map(|s| s.clone())
                             .unwrap_or_default();
-                        colonies::set_output(&process.processid, vec![output], prvkey).await?;
-                        colonies::close(&process.processid, prvkey).await?;
+                        colonyos::set_output(&process.processid, vec![output], prvkey).await?;
+                        colonyos::close(&process.processid, prvkey).await?;
                         println!("Process completed successfully");
                     }
                     _ => {
-                        colonies::fail(&process.processid, prvkey).await?;
+                        colonyos::fail(&process.processid, prvkey).await?;
                         println!("Unknown function: {}", process.spec.funcname);
                     }
                 }
@@ -83,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Submitting a Process
 
 ```rust
-use colonies::core::FunctionSpec;
+use colonyos::core::FunctionSpec;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -95,18 +95,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     spec.maxexectime = 60;
     spec.maxretries = 3;
 
-    let process = colonies::submit(&spec, prvkey).await?;
+    let process = colonyos::submit(&spec, prvkey).await?;
     println!("Submitted process: {}", process.processid);
 
     // Wait for completion
     loop {
-        let p = colonies::get_process(&process.processid, prvkey).await?;
+        let p = colonyos::get_process(&process.processid, prvkey).await?;
         match p.state {
-            colonies::core::SUCCESS => {
+            colonyos::core::SUCCESS => {
                 println!("Output: {:?}", p.output);
                 break;
             }
-            colonies::core::FAILED => {
+            colonyos::core::FAILED => {
                 println!("Process failed");
                 break;
             }
@@ -165,7 +165,7 @@ See [API.md](API.md) for the complete API reference.
 The SDK uses pure Rust cryptography:
 
 ```rust
-use colonies::crypto;
+use colonyos::crypto;
 
 // Generate a new private key
 let prvkey = crypto::gen_prvkey();

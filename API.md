@@ -749,11 +749,11 @@ let mut spec = FunctionSpec::new("my_func", "cli", "dev");
 spec.channels = vec!["output".to_string()];
 
 // Submit and assign the process
-let process = colonies::submit(&spec, &prvkey).await?;
-let assigned = colonies::assign(&colonyname, 10, &prvkey).await?;
+let process = colonyos::submit(&spec, &prvkey).await?;
+let assigned = colonyos::assign(&colonyname, 10, &prvkey).await?;
 
 // Append messages to the channel
-colonies::channel_append(
+colonyos::channel_append(
     &assigned.processid,
     "output",
     1,           // sequence
@@ -764,7 +764,7 @@ colonies::channel_append(
 ).await?;
 
 // Read messages from the channel
-let messages = colonies::channel_read(
+let messages = colonyos::channel_read(
     &assigned.processid,
     "output",
     0,   // afterseq (0 = all)
@@ -1003,7 +1003,7 @@ impl std::error::Error for RPCError {}
 ### Example Error Handling
 
 ```rust
-match colonies::assign(colonyname, 10, prvkey).await {
+match colonyos::assign(colonyname, 10, prvkey).await {
     Ok(process) => {
         // Handle process
     }
