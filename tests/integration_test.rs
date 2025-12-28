@@ -313,6 +313,49 @@ async fn test_get_processes_empty() {
 }
 
 #[tokio::test]
+async fn test_channel_append_error_handling() {
+    let t = create_test_colony().await;
+    let colony = t.0;
+    let colonyprvkey = t.2;
+
+    let t = create_test_executor(&colony.name, &colonyprvkey).await;
+    let executorprvkey = t.2;
+
+    // Create a function spec WITHOUT a channel
+    let spec = create_test_function_spec(colony.name.as_str());
+    // Note: spec.channels is empty
+
+    // Submit and assign the process
+    let _submitted = colonies::submit(&spec, &executorprvkey).await.unwrap();
+    let assigned = colonies::assign(&colony.name, 10, &executorprvkey)
+        .await
+        .unwrap();
+
+    // Try to append to a non-existent channel - should fail
+    let result = colonies::channel_append(
+        &assigned.processid,
+        "non-existent-channel",
+        1,
+        "message",
+        "",
+        0,
+        &executorprvkey,
+    )
+    .await;
+
+    // Should return an error
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(!err.conn_err()); // Not a connection error, but a server error
+
+    // Close the process
+    let _ = colonies::close(&assigned.processid, &executorprvkey).await;
+
+    let r = colonies::remove_colony(&colony.name, &SERVER_PRVKEY).await;
+    assert!(r.is_ok());
+}
+
+#[tokio::test]
 async fn test_channel_append_and_read() {
     let t = create_test_colony().await;
     let colony = t.0;
