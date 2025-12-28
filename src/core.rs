@@ -525,19 +525,50 @@ pub struct Statistics {
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct BlueprintDefinition {
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub colonyname: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub blueprintdefinitionid: String,
     #[serde(default)]
     pub kind: String,
     #[serde(default)]
-    pub executortype: String,
+    pub metadata: BlueprintMetadata,
     #[serde(default)]
-    pub specschema: HashMap<String, Value>,
-    #[serde(default)]
-    pub statusschema: HashMap<String, Value>,
+    pub spec: BlueprintDefinitionSpec,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct BlueprintDefinitionSpec {
+    #[serde(default)]
+    pub names: BlueprintDefinitionNames,
+    #[serde(default)]
+    pub handler: BlueprintDefinitionHandler,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schema: Option<HashMap<String, Value>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct BlueprintDefinitionNames {
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub singular: String,
+    #[serde(default)]
+    pub plural: String,
+    #[serde(default, rename = "listKind", skip_serializing_if = "String::is_empty")]
+    pub list_kind: String,
+    #[serde(default, rename = "shortNames", skip_serializing_if = "Vec::is_empty")]
+    pub short_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct BlueprintDefinitionHandler {
+    #[serde(default, rename = "executorType")]
+    pub executor_type: String,
+    #[serde(default, rename = "functionName", skip_serializing_if = "String::is_empty")]
+    pub function_name: String,
+    #[serde(default, rename = "reconcileInterval", skip_serializing_if = "is_zero_i32")]
+    pub reconcile_interval: i32,
+}
+
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct BlueprintMetadata {
@@ -545,6 +576,12 @@ pub struct BlueprintMetadata {
     pub name: String,
     #[serde(default)]
     pub colonyname: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub locationname: String,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub labels: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub annotations: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -555,7 +592,7 @@ pub struct BlueprintHandler {
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Blueprint {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub blueprintid: String,
     #[serde(default)]
     pub kind: String,
@@ -567,11 +604,11 @@ pub struct Blueprint {
     pub spec: HashMap<String, Value>,
     #[serde(default)]
     pub status: HashMap<String, Value>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
     pub generation: i64,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
     pub reconciledgeneration: i64,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub lastreconciled: String,
 }
 

@@ -686,6 +686,8 @@ struct ChannelAppendRPCMsg {
     pub sequence: i64,
     pub inreplyto: i64,
     pub payload: Vec<u8>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub payloadtype: String, // Message type: "", "end", "error"
 }
 
 pub(super) fn compose_channel_append_rpcmsg(
@@ -693,7 +695,7 @@ pub(super) fn compose_channel_append_rpcmsg(
     channelname: &str,
     sequence: i64,
     data: &str,
-    _data_type: &str,
+    data_type: &str,
     inreplyto: i64,
     prvkey: &str,
 ) -> String {
@@ -705,6 +707,7 @@ pub(super) fn compose_channel_append_rpcmsg(
         sequence,
         inreplyto,
         payload: data.as_bytes().to_vec(),
+        payloadtype: data_type.to_owned(),
     };
     let payload = serde_json::to_string(&msg).unwrap();
     let rpcmsg = compose_rpcmsg(payloadtype.to_owned(), payload, prvkey.to_owned());
@@ -902,7 +905,7 @@ pub(super) fn compose_get_blueprint_definitions_rpcmsg(colonyname: &str, prvkey:
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct RemoveBlueprintDefinitionRPCMsg {
-    pub colonyname: String,
+    pub namespace: String,
     pub name: String,
     pub msgtype: String,
 }
@@ -910,7 +913,7 @@ struct RemoveBlueprintDefinitionRPCMsg {
 pub(super) fn compose_remove_blueprint_definition_rpcmsg(colonyname: &str, name: &str, prvkey: &str) -> String {
     let payloadtype = "removeblueprintdefinitionmsg";
     let msg = RemoveBlueprintDefinitionRPCMsg {
-        colonyname: colonyname.to_owned(),
+        namespace: colonyname.to_owned(),
         name: name.to_owned(),
         msgtype: payloadtype.to_owned(),
     };
@@ -942,7 +945,7 @@ pub(super) fn compose_add_blueprint_rpcmsg(blueprint: &Blueprint, prvkey: &str) 
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct GetBlueprintRPCMsg {
-    pub colonyname: String,
+    pub namespace: String,
     pub name: String,
     pub msgtype: String,
 }
@@ -950,7 +953,7 @@ struct GetBlueprintRPCMsg {
 pub(super) fn compose_get_blueprint_rpcmsg(colonyname: &str, name: &str, prvkey: &str) -> String {
     let payloadtype = "getblueprintmsg";
     let msg = GetBlueprintRPCMsg {
-        colonyname: colonyname.to_owned(),
+        namespace: colonyname.to_owned(),
         name: name.to_owned(),
         msgtype: payloadtype.to_owned(),
     };
@@ -963,18 +966,18 @@ pub(super) fn compose_get_blueprint_rpcmsg(colonyname: &str, name: &str, prvkey:
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct GetBlueprintsRPCMsg {
-    pub colonyname: String,
+    pub namespace: String,
     pub kind: String,
-    pub location: String,
+    pub locationname: String,
     pub msgtype: String,
 }
 
 pub(super) fn compose_get_blueprints_rpcmsg(colonyname: &str, kind: &str, location: &str, prvkey: &str) -> String {
     let payloadtype = "getblueprintsmsg";
     let msg = GetBlueprintsRPCMsg {
-        colonyname: colonyname.to_owned(),
+        namespace: colonyname.to_owned(),
         kind: kind.to_owned(),
-        location: location.to_owned(),
+        locationname: location.to_owned(),
         msgtype: payloadtype.to_owned(),
     };
     let payload = serde_json::to_string(&msg).unwrap();
@@ -1007,7 +1010,7 @@ pub(super) fn compose_update_blueprint_rpcmsg(blueprint: &Blueprint, force_gener
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct RemoveBlueprintRPCMsg {
-    pub colonyname: String,
+    pub namespace: String,
     pub name: String,
     pub msgtype: String,
 }
@@ -1015,7 +1018,7 @@ struct RemoveBlueprintRPCMsg {
 pub(super) fn compose_remove_blueprint_rpcmsg(colonyname: &str, name: &str, prvkey: &str) -> String {
     let payloadtype = "removeblueprintmsg";
     let msg = RemoveBlueprintRPCMsg {
-        colonyname: colonyname.to_owned(),
+        namespace: colonyname.to_owned(),
         name: name.to_owned(),
         msgtype: payloadtype.to_owned(),
     };
@@ -1029,7 +1032,7 @@ pub(super) fn compose_remove_blueprint_rpcmsg(colonyname: &str, name: &str, prvk
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct UpdateBlueprintStatusRPCMsg {
     pub colonyname: String,
-    pub name: String,
+    pub blueprintname: String,
     pub status: HashMap<String, Value>,
     pub msgtype: String,
 }
@@ -1043,7 +1046,7 @@ pub(super) fn compose_update_blueprint_status_rpcmsg(
     let payloadtype = "updateblueprintstatusmsg";
     let msg = UpdateBlueprintStatusRPCMsg {
         colonyname: colonyname.to_owned(),
-        name: name.to_owned(),
+        blueprintname: name.to_owned(),
         status,
         msgtype: payloadtype.to_owned(),
     };
@@ -1056,7 +1059,7 @@ pub(super) fn compose_update_blueprint_status_rpcmsg(
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct ReconcileBlueprintRPCMsg {
-    pub colonyname: String,
+    pub namespace: String,
     pub name: String,
     pub force: bool,
     pub msgtype: String,
@@ -1065,7 +1068,7 @@ struct ReconcileBlueprintRPCMsg {
 pub(super) fn compose_reconcile_blueprint_rpcmsg(colonyname: &str, name: &str, force: bool, prvkey: &str) -> String {
     let payloadtype = "reconcileblueprintmsg";
     let msg = ReconcileBlueprintRPCMsg {
-        colonyname: colonyname.to_owned(),
+        namespace: colonyname.to_owned(),
         name: name.to_owned(),
         force,
         msgtype: payloadtype.to_owned(),
