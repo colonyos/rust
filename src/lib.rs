@@ -756,4 +756,317 @@ mod tests {
         assert!(fs.snapshots.is_empty());
         assert!(fs.dirs.is_empty());
     }
+
+    #[test]
+    fn test_capabilities_is_empty() {
+        let caps = Capabilities::default();
+        assert!(caps.is_empty());
+
+        let mut caps_with_hw = Capabilities::default();
+        caps_with_hw.hardware.push(Hardware::default());
+        assert!(!caps_with_hw.is_empty());
+
+        let mut caps_with_sw = Capabilities::default();
+        caps_with_sw.software.push(Software::default());
+        assert!(!caps_with_sw.is_empty());
+    }
+
+    #[test]
+    fn test_allocations_is_empty() {
+        let allocs = Allocations::default();
+        assert!(allocs.is_empty());
+
+        let mut allocs_with_project = Allocations::default();
+        allocs_with_project.projects.insert("test".to_string(), Project::default());
+        assert!(!allocs_with_project.is_empty());
+    }
+
+    #[test]
+    fn test_hardware_default() {
+        let hw = Hardware::default();
+        assert_eq!(hw.model, "");
+        assert_eq!(hw.nodes, 0);
+        assert_eq!(hw.cpu, "");
+        assert_eq!(hw.cores, 0);
+        assert_eq!(hw.mem, "");
+        assert_eq!(hw.storage, "");
+        assert_eq!(hw.platform, "");
+        assert_eq!(hw.architecture, "");
+        assert!(hw.network.is_empty());
+    }
+
+    #[test]
+    fn test_software_default() {
+        let sw = Software::default();
+        assert_eq!(sw.name, "");
+        assert_eq!(sw.software_type, "");
+        assert_eq!(sw.version, "");
+    }
+
+    #[test]
+    fn test_project_default() {
+        let proj = Project::default();
+        assert_eq!(proj.allocatedcpu, 0);
+        assert_eq!(proj.usedcpu, 0);
+        assert_eq!(proj.allocatedgpu, 0);
+        assert_eq!(proj.usedgpu, 0);
+        assert_eq!(proj.allocatedstorage, 0);
+        assert_eq!(proj.usedstorage, 0);
+    }
+
+    #[test]
+    fn test_executor_serialization_skips_empty_fields() {
+        let executor = Executor::new("test", "id", "cli", "colony");
+        let json = serde_json::to_string(&executor).unwrap();
+
+        // Empty fields should not be serialized
+        assert!(!json.contains("\"commissiontime\""));
+        assert!(!json.contains("\"lastheardfromtime\""));
+        assert!(!json.contains("\"locationname\""));
+        assert!(!json.contains("\"blueprintid\""));
+
+        // Required fields should be present
+        assert!(json.contains("\"executorid\""));
+        assert!(json.contains("\"executorname\""));
+        assert!(json.contains("\"executortype\""));
+        assert!(json.contains("\"colonyname\""));
+    }
+
+    #[test]
+    fn test_process_with_null_fields() {
+        // Test that null values are handled correctly
+        let json = r#"{
+            "processid": "proc-123",
+            "initiatorid": null,
+            "initiatorname": null,
+            "assignedexecutorid": null,
+            "isassigned": false,
+            "state": 0,
+            "attributes": null,
+            "spec": {
+                "funcname": "test",
+                "args": null,
+                "kwargs": null,
+                "conditions": {
+                    "colonyname": "test",
+                    "executornames": null,
+                    "dependencies": null
+                },
+                "env": null,
+                "channels": null
+            },
+            "parents": null,
+            "children": null,
+            "input": null,
+            "output": null,
+            "errors": null
+        }"#;
+
+        let process: Process = serde_json::from_str(json).unwrap();
+        assert_eq!(process.processid, "proc-123");
+        assert_eq!(process.initiatorid, "");
+        assert!(process.attributes.is_empty());
+        assert!(process.spec.args.is_empty());
+        assert!(process.parents.is_empty());
+        assert!(process.output.is_empty());
+    }
+
+    #[test]
+    fn test_executor_with_null_capabilities() {
+        let json = r#"{
+            "executorid": "id-123",
+            "executorname": "test",
+            "executortype": "cli",
+            "colonyname": "colony",
+            "state": 0,
+            "capabilities": null,
+            "allocations": null
+        }"#;
+
+        let executor: Executor = serde_json::from_str(json).unwrap();
+        assert_eq!(executor.executorid, "id-123");
+        assert!(executor.capabilities.is_empty());
+        assert!(executor.allocations.is_empty());
+    }
+
+    #[test]
+    fn test_blueprint_definition_default() {
+        let def = BlueprintDefinition::default();
+        assert_eq!(def.name, "");
+        assert_eq!(def.colonyname, "");
+        assert_eq!(def.kind, "");
+        assert_eq!(def.executortype, "");
+        assert!(def.specschema.is_empty());
+        assert!(def.statusschema.is_empty());
+    }
+
+    #[test]
+    fn test_blueprint_metadata_default() {
+        let meta = BlueprintMetadata::default();
+        assert_eq!(meta.name, "");
+        assert_eq!(meta.colonyname, "");
+    }
+
+    #[test]
+    fn test_blueprint_handler_default() {
+        let handler = BlueprintHandler::default();
+        assert_eq!(handler.executortype, "");
+    }
+
+    #[test]
+    fn test_blueprint_default() {
+        let bp = Blueprint::default();
+        assert_eq!(bp.blueprintid, "");
+        assert_eq!(bp.kind, "");
+        assert_eq!(bp.generation, 0);
+        assert_eq!(bp.reconciledgeneration, 0);
+        assert!(bp.spec.is_empty());
+        assert!(bp.status.is_empty());
+    }
+
+    #[test]
+    fn test_channel_entry_with_null_fields() {
+        let json = r#"{
+            "sequence": 1,
+            "data": null,
+            "type": null,
+            "inreplyto": 0
+        }"#;
+
+        let entry: ChannelEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.sequence, 1);
+        assert_eq!(entry.data, "");
+        assert_eq!(entry.msgtype, "");
+    }
+
+    #[test]
+    fn test_log_with_null_fields() {
+        let json = r#"{
+            "processid": null,
+            "colonyname": null,
+            "executorname": null,
+            "message": null,
+            "timestamp": 0
+        }"#;
+
+        let log: Log = serde_json::from_str(json).unwrap();
+        assert_eq!(log.processid, "");
+        assert_eq!(log.colonyname, "");
+        assert_eq!(log.executorname, "");
+        assert_eq!(log.message, "");
+    }
+
+    #[test]
+    fn test_functionspec_with_env_and_kwargs() {
+        let mut spec = FunctionSpec::new("func", "cli", "colony");
+        spec.env.insert("KEY1".to_string(), "value1".to_string());
+        spec.env.insert("KEY2".to_string(), "value2".to_string());
+        spec.kwargs.insert("param1".to_string(), serde_json::json!(123));
+        spec.kwargs.insert("param2".to_string(), serde_json::json!("string"));
+
+        let json = serde_json::to_string(&spec).unwrap();
+        let parsed: FunctionSpec = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.env.get("KEY1"), Some(&"value1".to_string()));
+        assert_eq!(parsed.env.get("KEY2"), Some(&"value2".to_string()));
+        assert_eq!(parsed.kwargs.get("param1"), Some(&serde_json::json!(123)));
+    }
+
+    #[test]
+    fn test_conditions_with_dependencies() {
+        let mut conditions = Conditions::new("colony", "cli");
+        conditions.dependencies = vec!["step1".to_string(), "step2".to_string()];
+        conditions.executornames = vec!["executor1".to_string()];
+        conditions.nodes = 2;
+        conditions.walltime = 3600;
+
+        let json = serde_json::to_string(&conditions).unwrap();
+        let parsed: Conditions = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.dependencies.len(), 2);
+        assert_eq!(parsed.executornames.len(), 1);
+        assert_eq!(parsed.nodes, 2);
+        assert_eq!(parsed.walltime, 3600);
+    }
+
+    #[test]
+    fn test_gpu_with_values() {
+        let json = r#"{
+            "name": "NVIDIA A100",
+            "mem": "40GB",
+            "count": 4,
+            "nodecount": 2
+        }"#;
+
+        let gpu: GPU = serde_json::from_str(json).unwrap();
+        assert_eq!(gpu.name, "NVIDIA A100");
+        assert_eq!(gpu.mem, "40GB");
+        assert_eq!(gpu.count, 4);
+        assert_eq!(gpu.nodecount, 2);
+    }
+
+    #[test]
+    fn test_statistics_serialization() {
+        let stats = Statistics {
+            colonies: 5,
+            executors: 10,
+            waitingprocesses: 100,
+            runningprocesses: 50,
+            successfulprocesses: 1000,
+            failedprocesses: 10,
+            waitingworkflows: 5,
+            runningworkflows: 2,
+            successfulworkflows: 50,
+            failedworkflows: 1,
+        };
+
+        let json = serde_json::to_string(&stats).unwrap();
+        let parsed: Statistics = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.colonies, 5);
+        assert_eq!(parsed.executors, 10);
+        assert_eq!(parsed.waitingprocesses, 100);
+        assert_eq!(parsed.successfulprocesses, 1000);
+    }
+
+    #[test]
+    fn test_failure_deserialization() {
+        let json = r#"{
+            "status": 500,
+            "message": "Internal server error"
+        }"#;
+
+        let failure: Failure = serde_json::from_str(json).unwrap();
+        assert_eq!(failure.status, 500);
+        assert_eq!(failure.message, "Internal server error");
+    }
+
+    #[test]
+    fn test_processgraph_with_null_fields() {
+        let json = r#"{
+            "processgraphid": null,
+            "colonyname": null,
+            "state": 0,
+            "rootprocessids": null,
+            "processids": null
+        }"#;
+
+        let pg: ProcessGraph = serde_json::from_str(json).unwrap();
+        assert_eq!(pg.processgraphid, "");
+        assert_eq!(pg.colonyname, "");
+        assert!(pg.rootprocessids.is_empty());
+        assert!(pg.processids.is_empty());
+    }
+
+    #[test]
+    fn test_workflowspec_with_null_fields() {
+        let json = r#"{
+            "colonyname": null,
+            "functionspecs": null
+        }"#;
+
+        let ws: WorkflowSpec = serde_json::from_str(json).unwrap();
+        assert_eq!(ws.colonyname, "");
+        assert!(ws.functionspecs.is_empty());
+    }
 }
