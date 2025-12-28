@@ -13,6 +13,7 @@ This document provides a complete reference for the ColonyOS Rust SDK.
 - [Workflow Management](#workflow-management)
 - [Logging](#logging)
 - [Channels](#channels)
+- [Subscriptions](#subscriptions)
 - [Statistics](#statistics)
 - [Function Registry](#function-registry)
 - [Blueprint Management](#blueprint-management)
@@ -775,6 +776,142 @@ let messages = colonyos::channel_read(
 for msg in messages {
     println!("Message {}: {}", msg.sequence, msg.payload_as_string());
 }
+```
+
+---
+
+## Subscriptions
+
+Subscriptions provide real-time notifications for process state changes and channel messages
+via WebSocket connections. These are essential for building responsive applications.
+
+### subscribe_process
+
+Subscribe to process lifecycle events and wait for a specific state.
+
+```rust
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn subscribe_process(
+    process: &Process,
+    state: i32,          // Target state (RUNNING, SUCCESS, FAILED)
+    timeout: i32,        // Timeout in seconds
+    prvkey: &str,
+) -> Result<(), RPCError>
+```
+
+This function opens a WebSocket connection to the server and blocks until the process
+reaches the specified state. Commonly used to wait for a process to start running
+before subscribing to its channels.
+
+**Example:**
+
+```rust
+use colonyos::core::{FunctionSpec, RUNNING};
+
+// Submit a process
+let mut spec = FunctionSpec::new("ai_inference", "ai", "my_colony");
+spec.channels = vec!["output".to_string()];
+let process = colonyos::submit(&spec, &prvkey).await?;
+
+// Wait for the process to be assigned and running
+colonyos::subscribe_process(&process, RUNNING, 60, &prvkey).await?;
+println!("Process is now running!");
+
+// Now it's safe to subscribe to channels
+```
+
+### subscribe_channel
+
+Subscribe to channel messages via WebSocket for real-time streaming.
+
+```rust
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn subscribe_channel<F>(
+    processid: &str,
+    channelname: &str,
+    afterseq: i64,       // Start reading after this sequence (0 for all)
+    timeout: i32,        // Timeout in seconds
+    prvkey: &str,
+    callback: F,         // Called for each batch of messages
+) -> Result<Vec<ChannelEntry>, RPCError>
+where
+    F: FnMut(Vec<ChannelEntry>) -> bool,  // Return false to stop receiving
+```
+
+This function opens a WebSocket connection and receives messages in real-time.
+The callback is called for each batch of messages received. Return `false` from
+the callback to stop receiving messages.
+
+**Important:** Subscribing to a channel triggers channel creation on the server.
+Always subscribe before appending messages to ensure the channel exists.
+
+**Example: Real-time streaming from AI executor**
+
+```rust
+use colonyos::core::{FunctionSpec, Process, RUNNING};
+
+async fn stream_ai_response(prvkey: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Submit process with channel
+    let mut spec = FunctionSpec::new("chat", "ai", "my_colony");
+    spec.channels = vec!["response".to_string()];
+    spec.args = vec!["What is the meaning of life?".to_string()];
+
+    let process = colonyos::submit(&spec, &prvkey).await?;
+
+    // 2. Wait for process to start running
+    colonyos::subscribe_process(&process, RUNNING, 60, &prvkey).await?;
+
+    // 3. Subscribe to channel and print tokens as they arrive
+    let all_entries = colonyos::subscribe_channel(
+        &process.processid,
+        "response",
+        0,    // from beginning
+        120,  // 2 minute timeout
+        &prvkey,
+        |entries| {
+            for entry in &entries {
+                // Print token without newline for streaming effect
+                print!("{}", entry.payload_as_string());
+                std::io::stdout().flush().ok();
+
+                // Stop if we receive an "end" message
+                if entry.msgtype == "end" {
+                    return false;
+                }
+            }
+            true // continue receiving
+        }
+    ).await?;
+
+    println!("\n\nReceived {} total messages", all_entries.len());
+    Ok(())
+}
+```
+
+**Example: Triggering channel creation**
+
+```rust
+// When you only need to ensure the channel exists (for append operations),
+// use a short timeout and stop immediately:
+let _ = colonyos::subscribe_channel(
+    &process.processid,
+    "my-channel",
+    0,   // afterseq
+    1,   // 1 second timeout
+    &prvkey,
+    |_| false,  // Stop immediately after first callback
+).await;
+
+// Now channel_append will work reliably
+colonyos::channel_append(
+    &process.processid,
+    "my-channel",
+    1,
+    "Hello!",
+    "",
+    0,
+    &prvkey,
+).await?;
 ```
 
 ---

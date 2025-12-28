@@ -1075,6 +1075,71 @@ pub(super) fn compose_reconcile_blueprint_rpcmsg(colonyname: &str, name: &str, f
     serde_json::to_string(&rpcmsg).unwrap()
 }
 
+// subscribe process
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct SubscribeProcessRPCMsg {
+    pub processid: String,
+    pub executortype: String,
+    pub state: i32,
+    pub timeout: i32,
+    pub colonyname: String,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_subscribe_process_rpcmsg(
+    processid: &str,
+    executortype: &str,
+    state: i32,
+    timeout: i32,
+    colonyname: &str,
+    prvkey: &str,
+) -> String {
+    let payloadtype = "subscribeprocessmsg";
+    let msg = SubscribeProcessRPCMsg {
+        processid: processid.to_owned(),
+        executortype: executortype.to_owned(),
+        state,
+        timeout,
+        colonyname: colonyname.to_owned(),
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&msg).unwrap();
+    let rpcmsg = compose_rpcmsg(payloadtype.to_owned(), payload, prvkey.to_owned());
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
+// subscribe channel
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct SubscribeChannelRPCMsg {
+    pub processid: String,
+    pub name: String,
+    pub afterseq: i64,
+    pub timeout: i32,
+    pub msgtype: String,
+}
+
+pub(super) fn compose_subscribe_channel_rpcmsg(
+    processid: &str,
+    channelname: &str,
+    afterseq: i64,
+    timeout: i32,
+    prvkey: &str,
+) -> String {
+    let payloadtype = "subscribechannelmsg";
+    let msg = SubscribeChannelRPCMsg {
+        processid: processid.to_owned(),
+        name: channelname.to_owned(),
+        afterseq,
+        timeout,
+        msgtype: payloadtype.to_owned(),
+    };
+    let payload = serde_json::to_string(&msg).unwrap();
+    let rpcmsg = compose_rpcmsg(payloadtype.to_owned(), payload, prvkey.to_owned());
+    serde_json::to_string(&rpcmsg).unwrap()
+}
+
 // RPC
 
 impl Error for RPCError {
@@ -1163,6 +1228,136 @@ pub(super) async fn send_rpcmsg(msg: String) -> Result<String, RPCError> {
     }
 
     Ok(s)
+}
+
+/// Get the WebSocket URL from the current server URL
+fn get_ws_url() -> String {
+    let http_url = get_server_url();
+    // Replace http:// with ws:// and https:// with wss://
+    // Also replace /api with /pubsub
+    let ws_url = if http_url.starts_with("https://") {
+        http_url.replace("https://", "wss://")
+    } else {
+        http_url.replace("http://", "ws://")
+    };
+    ws_url.replace("/api", "/pubsub")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) async fn send_ws_subscribe_process(msg: String) -> Result<(), RPCError> {
+    use tokio_tungstenite::connect_async;
+    use futures_util::{SinkExt, StreamExt};
+
+    let ws_url = get_ws_url();
+
+    let (ws_stream, _) = connect_async(&ws_url)
+        .await
+        .map_err(|e| RPCError::new(&format!("WebSocket connection failed: {}", e), true))?;
+
+    let (mut write, mut read) = ws_stream.split();
+
+    // Send the subscription message
+    write
+        .send(tokio_tungstenite::tungstenite::Message::Text(msg))
+        .await
+        .map_err(|e| RPCError::new(&format!("WebSocket send failed: {}", e), true))?;
+
+    // Wait for a response (process state change notification)
+    if let Some(msg) = read.next().await {
+        match msg {
+            Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {
+                let rpc_reply: RPCReplyMsg = serde_json::from_str(&text)
+                    .map_err(|e| RPCError::new(&format!("Failed to parse WebSocket response: {}", e), false))?;
+
+                if rpc_reply.error {
+                    let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
+                    let s = String::from_utf8(buf).expect("valid byte array");
+                    let failure: Failure = serde_json::from_str(&s).unwrap();
+                    return Err(RPCError::new(&failure.message, false));
+                }
+            }
+            Ok(_) => {}
+            Err(e) => {
+                return Err(RPCError::new(&format!("WebSocket error: {}", e), true));
+            }
+        }
+    }
+
+    // Close the connection
+    write.close().await.ok();
+
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) async fn send_ws_subscribe_channel<F>(
+    msg: String,
+    mut callback: F,
+) -> Result<Vec<crate::core::ChannelEntry>, RPCError>
+where
+    F: FnMut(Vec<crate::core::ChannelEntry>) -> bool,
+{
+    use tokio_tungstenite::connect_async;
+    use futures_util::{SinkExt, StreamExt};
+
+    let ws_url = get_ws_url();
+
+    let (ws_stream, _) = connect_async(&ws_url)
+        .await
+        .map_err(|e| RPCError::new(&format!("WebSocket connection failed: {}", e), true))?;
+
+    let (mut write, mut read) = ws_stream.split();
+
+    // Send the subscription message
+    write
+        .send(tokio_tungstenite::tungstenite::Message::Text(msg))
+        .await
+        .map_err(|e| RPCError::new(&format!("WebSocket send failed: {}", e), true))?;
+
+    let mut all_entries = Vec::new();
+
+    // Read messages until timeout or stream ends
+    while let Some(msg) = read.next().await {
+        match msg {
+            Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {
+                let rpc_reply: RPCReplyMsg = serde_json::from_str(&text)
+                    .map_err(|e| RPCError::new(&format!("Failed to parse WebSocket response: {}", e), false))?;
+
+                if rpc_reply.error {
+                    let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
+                    let s = String::from_utf8(buf).expect("valid byte array");
+                    let failure: Failure = serde_json::from_str(&s).unwrap();
+                    return Err(RPCError::new(&failure.message, false));
+                }
+
+                let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
+                let s = String::from_utf8(buf).expect("valid byte array");
+                let entries: Vec<crate::core::ChannelEntry> = serde_json::from_str(&s).unwrap_or_default();
+
+                if entries.is_empty() {
+                    // Empty response indicates timeout
+                    break;
+                }
+
+                all_entries.extend(entries.clone());
+
+                // Call callback and check if we should continue
+                if !callback(entries) {
+                    break;
+                }
+            }
+            Ok(tokio_tungstenite::tungstenite::Message::Close(_)) => break,
+            Ok(_) => {}
+            Err(e) => {
+                return Err(RPCError::new(&format!("WebSocket error: {}", e), true));
+            }
+        }
+    }
+
+    // Close the connection
+    write.close().await.ok();
+
+    Ok(all_entries)
 }
 
 #[cfg(test)]
@@ -1597,5 +1792,74 @@ mod tests {
         assert_eq!(payload_json["msgtype"], "addcolonymsg");
         assert_eq!(payload_json["colony"]["colonyid"], "id");
         assert_eq!(payload_json["colony"]["name"], "name");
+    }
+
+    #[test]
+    fn test_compose_subscribe_process_rpcmsg() {
+        let msg = compose_subscribe_process_rpcmsg(
+            "process-123",
+            "cli",
+            2, // state: SUCCESS
+            30,
+            "test-colony",
+            TEST_PRVKEY,
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "subscribeprocessmsg");
+
+        // Decode and verify payload contents
+        let payload_b64 = parsed["payload"].as_str().unwrap();
+        let payload_bytes = BASE64.decode(payload_b64).unwrap();
+        let payload_str = String::from_utf8(payload_bytes).unwrap();
+        let payload_json: serde_json::Value = serde_json::from_str(&payload_str).unwrap();
+
+        assert_eq!(payload_json["processid"], "process-123");
+        assert_eq!(payload_json["executortype"], "cli");
+        assert_eq!(payload_json["state"], 2);
+        assert_eq!(payload_json["timeout"], 30);
+        assert_eq!(payload_json["colonyname"], "test-colony");
+        assert_eq!(payload_json["msgtype"], "subscribeprocessmsg");
+    }
+
+    #[test]
+    fn test_compose_subscribe_channel_rpcmsg() {
+        let msg = compose_subscribe_channel_rpcmsg(
+            "process-123",
+            "my-channel",
+            10, // afterseq
+            30, // timeout
+            TEST_PRVKEY,
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["payloadtype"], "subscribechannelmsg");
+
+        // Decode and verify payload contents
+        let payload_b64 = parsed["payload"].as_str().unwrap();
+        let payload_bytes = BASE64.decode(payload_b64).unwrap();
+        let payload_str = String::from_utf8(payload_bytes).unwrap();
+        let payload_json: serde_json::Value = serde_json::from_str(&payload_str).unwrap();
+
+        assert_eq!(payload_json["processid"], "process-123");
+        assert_eq!(payload_json["name"], "my-channel");
+        assert_eq!(payload_json["afterseq"], 10);
+        assert_eq!(payload_json["timeout"], 30);
+        assert_eq!(payload_json["msgtype"], "subscribechannelmsg");
+    }
+
+    #[test]
+    fn test_get_ws_url_http() {
+        set_server_url("http://localhost:50080/api");
+        let ws_url = get_ws_url();
+        assert_eq!(ws_url, "ws://localhost:50080/pubsub");
+    }
+
+    #[test]
+    fn test_get_ws_url_https() {
+        set_server_url("https://secure.example.com:443/api");
+        let ws_url = get_ws_url();
+        assert_eq!(ws_url, "wss://secure.example.com:443/pubsub");
+
+        // Reset to default
+        set_server_url("http://localhost:50080/api");
     }
 }

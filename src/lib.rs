@@ -300,6 +300,109 @@ pub async fn get_logs(
     Ok(logs.unwrap_or_default())
 }
 
+// ============== Subscription Methods ==============
+
+/// Subscribe to process lifecycle events and wait for the process to reach the specified state.
+///
+/// This function opens a WebSocket connection to the server and blocks until the process
+/// reaches the desired state (e.g., SUCCESS or FAILED).
+///
+/// # Arguments
+/// * `process` - The process to subscribe to
+/// * `state` - The target state to wait for (e.g., core::SUCCESS, core::RUNNING)
+/// * `timeout` - Timeout in seconds
+/// * `prvkey` - Private key for authentication
+///
+/// # Example
+/// ```rust,no_run
+/// use colonyos::{submit, subscribe_process, core};
+///
+/// async fn wait_for_process() {
+///     let prvkey = "your_private_key";
+///     let spec = core::FunctionSpec::new("my_function", "cli", "my_colony");
+///     let process = submit(&spec, prvkey).await.unwrap();
+///
+///     // Wait for process to complete
+///     subscribe_process(&process, core::SUCCESS, 60, prvkey).await.unwrap();
+///     println!("Process completed!");
+/// }
+/// ```
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn subscribe_process(
+    process: &core::Process,
+    state: i32,
+    timeout: i32,
+    prvkey: &str,
+) -> Result<(), rpc::RPCError> {
+    let rpcmsg = rpc::compose_subscribe_process_rpcmsg(
+        &process.processid,
+        &process.spec.conditions.executortype,
+        state,
+        timeout,
+        &process.spec.conditions.colonyname,
+        prvkey,
+    );
+    rpc::send_ws_subscribe_process(rpcmsg).await
+}
+
+/// Subscribe to channel messages via WebSocket.
+///
+/// This function opens a WebSocket connection to receive real-time channel messages.
+/// Messages are delivered to the callback function as they arrive.
+///
+/// # Arguments
+/// * `processid` - The process ID that owns the channel
+/// * `channelname` - Name of the channel
+/// * `afterseq` - Start reading after this sequence number (0 for all messages)
+/// * `timeout` - Timeout in seconds
+/// * `prvkey` - Private key for authentication
+/// * `callback` - Function called for each batch of messages. Return false to stop receiving.
+///
+/// # Returns
+/// All received messages collected during the subscription.
+///
+/// # Example
+/// ```rust,no_run
+/// use colonyos::{subscribe_channel, core};
+///
+/// async fn receive_messages(processid: &str, prvkey: &str) {
+///     let entries = subscribe_channel(
+///         processid,
+///         "my-channel",
+///         0,  // start from beginning
+///         30, // 30 second timeout
+///         prvkey,
+///         |entries| {
+///             for entry in &entries {
+///                 println!("Received: {}", entry.payload_as_string());
+///             }
+///             true // continue receiving
+///         }
+///     ).await.unwrap();
+/// }
+/// ```
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn subscribe_channel<F>(
+    processid: &str,
+    channelname: &str,
+    afterseq: i64,
+    timeout: i32,
+    prvkey: &str,
+    callback: F,
+) -> Result<Vec<core::ChannelEntry>, rpc::RPCError>
+where
+    F: FnMut(Vec<core::ChannelEntry>) -> bool,
+{
+    let rpcmsg = rpc::compose_subscribe_channel_rpcmsg(
+        processid,
+        channelname,
+        afterseq,
+        timeout,
+        prvkey,
+    );
+    rpc::send_ws_subscribe_channel(rpcmsg, callback).await
+}
+
 // ============== Channel Methods ==============
 
 pub async fn channel_append(

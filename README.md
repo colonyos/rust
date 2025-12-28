@@ -161,6 +161,10 @@ See [docs/API.md](docs/API.md) for the complete API reference.
 ### Channels
 - `channel_append`, `channel_read`
 
+### Subscriptions (WebSocket)
+- `subscribe_process` - Wait for process state changes
+- `subscribe_channel` - Real-time channel message streaming
+
 ### Statistics
 - `get_statistics`
 
