@@ -694,15 +694,20 @@ defined in its FunctionSpec before they can be used.
 
 ```rust
 pub struct ChannelEntry {
-    pub sequence: i64,         // Message sequence number
-    pub payload: Vec<u8>,      // Message content as bytes
-    pub payloadtype: String,   // Message type (empty, "end", or "error")
-    pub inreplyto: i64,        // Sequence number this replies to
+    pub sequence: i64,      // Message sequence number
+    pub payload: String,    // Base64 encoded payload
+    pub msgtype: String,    // Message type ("data", "end", or "error")
+    pub inreplyto: i64,     // Sequence number this replies to
+    pub timestamp: String,  // ISO 8601 timestamp
+    pub senderid: String,   // Sender's executor ID
 }
 
 impl ChannelEntry {
-    /// Returns the payload as a UTF-8 string
+    /// Returns the payload decoded from base64 as a UTF-8 string
     pub fn payload_as_string(&self) -> String;
+
+    /// Returns the raw payload bytes decoded from base64
+    pub fn payload_bytes(&self) -> Vec<u8>;
 }
 ```
 

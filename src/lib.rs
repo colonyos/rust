@@ -310,7 +310,7 @@ pub async fn channel_append(
 ) -> Result<core::ChannelEntry, rpc::RPCError> {
     let rpcmsg = rpc::compose_channel_append_rpcmsg(processid, channelname, sequence, data, data_type, inreplyto, prvkey);
     let reply_json = rpc::send_rpcmsg(rpcmsg).await?;
-    let entry: core::ChannelEntry = serde_json::from_str(reply_json.as_str()).unwrap();
+    let entry: core::ChannelEntry = serde_json::from_str(reply_json.as_str()).unwrap_or_default();
     Ok(entry)
 }
 
@@ -655,17 +655,22 @@ mod tests {
 
     #[test]
     fn test_channel_entry_deserialization() {
+        // Server returns payload as base64 encoded string
         let json = r#"{
             "sequence": 42,
-            "payload": [104, 101, 108, 108, 111],
-            "payloadtype": "data",
-            "inreplyto": 0
+            "payload": "aGVsbG8=",
+            "type": "data",
+            "inreplyto": 0,
+            "timestamp": "2025-01-01T00:00:00Z",
+            "senderid": "abc123"
         }"#;
 
         let entry: ChannelEntry = serde_json::from_str(json).unwrap();
         assert_eq!(entry.sequence, 42);
         assert_eq!(entry.payload_as_string(), "hello");
-        assert_eq!(entry.payloadtype, "data");
+        assert_eq!(entry.msgtype, "data");
+        assert_eq!(entry.timestamp, "2025-01-01T00:00:00Z");
+        assert_eq!(entry.senderid, "abc123");
     }
 
     #[test]
@@ -930,14 +935,18 @@ mod tests {
         let json = r#"{
             "sequence": 1,
             "payload": null,
-            "payloadtype": null,
-            "inreplyto": 0
+            "type": null,
+            "inreplyto": 0,
+            "timestamp": null,
+            "senderid": null
         }"#;
 
         let entry: ChannelEntry = serde_json::from_str(json).unwrap();
         assert_eq!(entry.sequence, 1);
         assert!(entry.payload.is_empty());
-        assert_eq!(entry.payloadtype, "");
+        assert_eq!(entry.msgtype, "");
+        assert_eq!(entry.timestamp, "");
+        assert_eq!(entry.senderid, "");
     }
 
     #[test]
