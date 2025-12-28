@@ -21,7 +21,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-colonyos = "0.1"
+colonyos = "1.0"
 tokio = { version = "1", features = ["full"] }
 ```
 
