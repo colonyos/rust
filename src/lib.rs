@@ -302,12 +302,13 @@ pub async fn get_logs(
 pub async fn channel_append(
     processid: &str,
     channelname: &str,
+    sequence: i64,
     data: &str,
     data_type: &str,
     inreplyto: i64,
     prvkey: &str,
 ) -> Result<core::ChannelEntry, rpc::RPCError> {
-    let rpcmsg = rpc::compose_channel_append_rpcmsg(processid, channelname, data, data_type, inreplyto, prvkey);
+    let rpcmsg = rpc::compose_channel_append_rpcmsg(processid, channelname, sequence, data, data_type, inreplyto, prvkey);
     let reply_json = rpc::send_rpcmsg(rpcmsg).await?;
     let entry: core::ChannelEntry = serde_json::from_str(reply_json.as_str()).unwrap();
     Ok(entry)
@@ -656,15 +657,15 @@ mod tests {
     fn test_channel_entry_deserialization() {
         let json = r#"{
             "sequence": 42,
-            "data": "hello world",
-            "type": "data",
+            "payload": [104, 101, 108, 108, 111],
+            "payloadtype": "data",
             "inreplyto": 0
         }"#;
 
         let entry: ChannelEntry = serde_json::from_str(json).unwrap();
         assert_eq!(entry.sequence, 42);
-        assert_eq!(entry.data, "hello world");
-        assert_eq!(entry.msgtype, "data");
+        assert_eq!(entry.payload_as_string(), "hello");
+        assert_eq!(entry.payloadtype, "data");
     }
 
     #[test]
@@ -928,15 +929,15 @@ mod tests {
     fn test_channel_entry_with_null_fields() {
         let json = r#"{
             "sequence": 1,
-            "data": null,
-            "type": null,
+            "payload": null,
+            "payloadtype": null,
             "inreplyto": 0
         }"#;
 
         let entry: ChannelEntry = serde_json::from_str(json).unwrap();
         assert_eq!(entry.sequence, 1);
-        assert_eq!(entry.data, "");
-        assert_eq!(entry.msgtype, "");
+        assert!(entry.payload.is_empty());
+        assert_eq!(entry.payloadtype, "");
     }
 
     #[test]

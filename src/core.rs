@@ -13,6 +13,14 @@ where
     Ok(opt.unwrap_or_default())
 }
 
+fn deserialize_null_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt: Option<Vec<u8>> = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
+}
+
 // ============== Constants ==============
 
 pub const PENDING: i32 = 0;
@@ -466,12 +474,19 @@ pub struct Log {
 pub struct ChannelEntry {
     #[serde(default)]
     pub sequence: i64,
+    #[serde(default, deserialize_with = "deserialize_null_vec_u8")]
+    pub payload: Vec<u8>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub data: String,
-    #[serde(default, rename = "type", deserialize_with = "deserialize_null_default")]
-    pub msgtype: String,
+    pub payloadtype: String,
     #[serde(default)]
     pub inreplyto: i64,
+}
+
+impl ChannelEntry {
+    /// Returns the payload as a UTF-8 string, or an empty string if invalid.
+    pub fn payload_as_string(&self) -> String {
+        String::from_utf8(self.payload.clone()).unwrap_or_default()
+    }
 }
 
 // ============== Statistics ==============

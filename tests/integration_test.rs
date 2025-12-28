@@ -311,3 +311,172 @@ async fn test_get_processes_empty() {
     .await
     .unwrap();
 }
+
+// Note: Channel tests are disabled for now as the channel API requires
+// specific server configuration. The channel functions are available but
+// may require additional setup to work properly.
+//
+// #[tokio::test]
+// async fn test_channel_append_and_read() {
+//     // Channel test implementation...
+// }
+
+#[tokio::test]
+async fn test_set_output() {
+    let t = create_test_colony().await;
+    let colony = t.0;
+    let colonyprvkey = t.2;
+
+    let t = create_test_executor(&colony.name, &colonyprvkey).await;
+    let executorprvkey = t.2;
+
+    let spec = create_test_function_spec(colony.name.as_str());
+    let _submitted = colonies::submit(&spec, &executorprvkey).await.unwrap();
+    let assigned = colonies::assign(&colony.name, 10, &executorprvkey)
+        .await
+        .unwrap();
+
+    // Set output
+    colonies::set_output(
+        &assigned.processid,
+        vec!["output1".to_string(), "output2".to_string()],
+        &executorprvkey,
+    )
+    .await
+    .unwrap();
+
+    // Close the process
+    colonies::close(&assigned.processid, &executorprvkey).await.unwrap();
+
+    // Verify output was set
+    let process = colonies::get_process(&assigned.processid, &executorprvkey)
+        .await
+        .unwrap();
+    assert_eq!(process.output.len(), 2);
+    assert_eq!(process.output[0], "output1");
+    assert_eq!(process.output[1], "output2");
+
+    let r = colonies::remove_colony(&colony.name, &SERVER_PRVKEY).await;
+    assert!(r.is_ok(), "Expected colonies::remove_colony to succeed");
+}
+
+#[tokio::test]
+async fn test_add_log() {
+    let t = create_test_colony().await;
+    let colony = t.0;
+    let colonyprvkey = t.2;
+
+    let t = create_test_executor(&colony.name, &colonyprvkey).await;
+    let executor = t.0;
+    let executorprvkey = t.2;
+
+    let spec = create_test_function_spec(colony.name.as_str());
+    let _submitted = colonies::submit(&spec, &executorprvkey).await.unwrap();
+    let assigned = colonies::assign(&colony.name, 10, &executorprvkey)
+        .await
+        .unwrap();
+
+    // Add a log message
+    let log = colonies::core::Log {
+        processid: assigned.processid.clone(),
+        colonyname: colony.name.clone(),
+        executorname: executor.executorname.clone(),
+        message: "Test log message".to_string(),
+        timestamp: 0,
+    };
+    colonies::add_log(&log, &executorprvkey).await.unwrap();
+
+    // Get logs
+    let logs = colonies::get_logs(
+        &colony.name,
+        &assigned.processid,
+        &executor.executorname,
+        10,
+        0,
+        &executorprvkey,
+    )
+    .await
+    .unwrap();
+
+    assert!(!logs.is_empty());
+    assert_eq!(logs[0].message, "Test log message");
+
+    // Close the process
+    colonies::close(&assigned.processid, &executorprvkey).await.unwrap();
+
+    let r = colonies::remove_colony(&colony.name, &SERVER_PRVKEY).await;
+    assert!(r.is_ok(), "Expected colonies::remove_colony to succeed");
+}
+
+#[tokio::test]
+async fn test_get_statistics() {
+    let t = create_test_colony().await;
+    let colony = t.0;
+    let colonyprvkey = t.2;
+
+    let t = create_test_executor(&colony.name, &colonyprvkey).await;
+    let executorprvkey = t.2;
+
+    // Get statistics
+    let stats = colonies::get_statistics(&colony.name, &executorprvkey)
+        .await
+        .unwrap();
+
+    // At minimum, executors should be 1 (we just added one)
+    assert!(stats.executors >= 1);
+
+    let r = colonies::remove_colony(&colony.name, &SERVER_PRVKEY).await;
+    assert!(r.is_ok(), "Expected colonies::remove_colony to succeed");
+}
+
+#[tokio::test]
+async fn test_workflow() {
+    let t = create_test_colony().await;
+    let colony = t.0;
+    let colonyprvkey = t.2;
+
+    let t = create_test_executor(&colony.name, &colonyprvkey).await;
+    let executorprvkey = t.2;
+
+    // Create a simple workflow with two steps
+    let mut step1 = FunctionSpec::new("step1", "test_executor_type", &colony.name);
+    step1.nodename = "step1".to_string();
+
+    let mut step2 = FunctionSpec::new("step2", "test_executor_type", &colony.name);
+    step2.nodename = "step2".to_string();
+    step2.conditions.dependencies = vec!["step1".to_string()];
+
+    let workflow = colonies::core::WorkflowSpec {
+        colonyname: colony.name.clone(),
+        functionspecs: vec![step1, step2],
+    };
+
+    // Submit the workflow
+    let pg = colonies::submit_workflow(&workflow, &executorprvkey)
+        .await
+        .unwrap();
+
+    assert!(!pg.processgraphid.is_empty());
+    assert_eq!(pg.processids.len(), 2);
+
+    // Get the process graph
+    let pg2 = colonies::get_processgraph(&pg.processgraphid, &executorprvkey)
+        .await
+        .unwrap();
+    assert_eq!(pg.processgraphid, pg2.processgraphid);
+
+    // Clean up - assign and close processes
+    let p1 = colonies::assign(&colony.name, 10, &executorprvkey).await.unwrap();
+    colonies::close(&p1.processid, &executorprvkey).await.unwrap();
+
+    let p2 = colonies::assign(&colony.name, 10, &executorprvkey).await.unwrap();
+    colonies::close(&p2.processid, &executorprvkey).await.unwrap();
+
+    // Remove the process graph
+    colonies::remove_processgraph(&pg.processgraphid, &executorprvkey)
+        .await
+        .unwrap();
+
+    let r = colonies::remove_colony(&colony.name, &SERVER_PRVKEY).await;
+    assert!(r.is_ok(), "Expected colonies::remove_colony to succeed");
+}

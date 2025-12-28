@@ -687,6 +687,25 @@ pub async fn get_logs(
 
 ## Channels
 
+Channels provide real-time communication with processes. A process must have channels
+defined in its FunctionSpec before they can be used.
+
+### ChannelEntry
+
+```rust
+pub struct ChannelEntry {
+    pub sequence: i64,         // Message sequence number
+    pub payload: Vec<u8>,      // Message content as bytes
+    pub payloadtype: String,   // Message type (empty, "end", or "error")
+    pub inreplyto: i64,        // Sequence number this replies to
+}
+
+impl ChannelEntry {
+    /// Returns the payload as a UTF-8 string
+    pub fn payload_as_string(&self) -> String;
+}
+```
+
 ### channel_append
 
 Append data to a process channel.
@@ -695,9 +714,10 @@ Append data to a process channel.
 pub async fn channel_append(
     processid: &str,
     channelname: &str,
-    data: &str,
-    data_type: &str,  // e.g., "data", "end", "error"
-    inreplyto: i64,
+    sequence: i64,       // Client-assigned sequence number
+    data: &str,          // Message content
+    data_type: &str,     // Empty string, "end", or "error"
+    inreplyto: i64,      // Sequence number this replies to (0 if not a reply)
     prvkey: &str,
 ) -> Result<ChannelEntry, RPCError>
 ```
@@ -710,10 +730,46 @@ Read from a process channel.
 pub async fn channel_read(
     processid: &str,
     channelname: &str,
-    start: i64,
-    count: i32,
+    afterseq: i64,       // Read messages after this sequence (0 for all)
+    limit: i32,          // Max messages to return (0 for no limit)
     prvkey: &str,
 ) -> Result<Vec<ChannelEntry>, RPCError>
+```
+
+**Example:**
+
+```rust
+// Create a spec with a channel
+let mut spec = FunctionSpec::new("my_func", "cli", "dev");
+spec.channels = vec!["output".to_string()];
+
+// Submit and assign the process
+let process = colonies::submit(&spec, &prvkey).await?;
+let assigned = colonies::assign(&colonyname, 10, &prvkey).await?;
+
+// Append messages to the channel
+colonies::channel_append(
+    &assigned.processid,
+    "output",
+    1,           // sequence
+    "Hello!",
+    "",          // payloadtype
+    0,           // inreplyto
+    &prvkey,
+).await?;
+
+// Read messages from the channel
+let messages = colonies::channel_read(
+    &assigned.processid,
+    "output",
+    0,   // afterseq (0 = all)
+    10,  // limit
+    &prvkey,
+).await?;
+
+for msg in messages {
+    println!("Message {}: {}", msg.sequence, msg.payload_as_string());
+}
 ```
 
 ---
