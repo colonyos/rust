@@ -1292,6 +1292,7 @@ pub(super) async fn send_ws_subscribe_process(msg: String) -> Result<(), RPCErro
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn send_ws_subscribe_channel<F>(
     msg: String,
+    timeout_secs: i32,
     mut callback: F,
 ) -> Result<Vec<crate::core::ChannelEntry>, RPCError>
 where
@@ -1299,12 +1300,19 @@ where
 {
     use tokio_tungstenite::connect_async;
     use futures_util::{SinkExt, StreamExt};
+    use tokio::time::{timeout, Duration};
 
     let ws_url = get_ws_url();
 
-    let (ws_stream, _) = connect_async(&ws_url)
-        .await
-        .map_err(|e| RPCError::new(&format!("WebSocket connection failed: {}", e), true))?;
+    // Add extra time for connection overhead
+    let client_timeout = Duration::from_secs((timeout_secs as u64) + 5);
+
+    let connect_result = timeout(Duration::from_secs(10), connect_async(&ws_url)).await;
+    let (ws_stream, _) = match connect_result {
+        Ok(Ok(stream)) => stream,
+        Ok(Err(e)) => return Err(RPCError::new(&format!("WebSocket connection failed: {}", e), true)),
+        Err(_) => return Err(RPCError::new("WebSocket connection timed out", true)),
+    };
 
     let (mut write, mut read) = ws_stream.split();
 
@@ -1317,40 +1325,46 @@ where
     let mut all_entries = Vec::new();
 
     // Read messages until timeout or stream ends
-    while let Some(msg) = read.next().await {
-        match msg {
-            Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {
-                let rpc_reply: RPCReplyMsg = serde_json::from_str(&text)
-                    .map_err(|e| RPCError::new(&format!("Failed to parse WebSocket response: {}", e), false))?;
+    loop {
+        match timeout(client_timeout, read.next()).await {
+            Ok(Some(msg)) => {
+                match msg {
+                    Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {
+                        let rpc_reply: RPCReplyMsg = serde_json::from_str(&text)
+                            .map_err(|e| RPCError::new(&format!("Failed to parse WebSocket response: {}", e), false))?;
 
-                if rpc_reply.error {
-                    let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
-                    let s = String::from_utf8(buf).expect("valid byte array");
-                    let failure: Failure = serde_json::from_str(&s).unwrap();
-                    return Err(RPCError::new(&failure.message, false));
-                }
+                        if rpc_reply.error {
+                            let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
+                            let s = String::from_utf8(buf).expect("valid byte array");
+                            let failure: Failure = serde_json::from_str(&s).unwrap();
+                            return Err(RPCError::new(&failure.message, false));
+                        }
 
-                let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
-                let s = String::from_utf8(buf).expect("valid byte array");
-                let entries: Vec<crate::core::ChannelEntry> = serde_json::from_str(&s).unwrap_or_default();
+                        let buf = BASE64.decode(rpc_reply.payload.as_str()).unwrap();
+                        let s = String::from_utf8(buf).expect("valid byte array");
+                        let entries: Vec<crate::core::ChannelEntry> = serde_json::from_str(&s).unwrap_or_default();
 
-                if entries.is_empty() {
-                    // Empty response indicates timeout
-                    break;
-                }
+                        if entries.is_empty() {
+                            // Empty response indicates server-side timeout
+                            break;
+                        }
 
-                all_entries.extend(entries.clone());
+                        all_entries.extend(entries.clone());
 
-                // Call callback and check if we should continue
-                if !callback(entries) {
-                    break;
+                        // Call callback and check if we should continue
+                        if !callback(entries) {
+                            break;
+                        }
+                    }
+                    Ok(tokio_tungstenite::tungstenite::Message::Close(_)) => break,
+                    Ok(_) => {}
+                    Err(e) => {
+                        return Err(RPCError::new(&format!("WebSocket error: {}", e), true));
+                    }
                 }
             }
-            Ok(tokio_tungstenite::tungstenite::Message::Close(_)) => break,
-            Ok(_) => {}
-            Err(e) => {
-                return Err(RPCError::new(&format!("WebSocket error: {}", e), true));
-            }
+            Ok(None) => break, // Stream ended
+            Err(_) => break,   // Client-side timeout
         }
     }
 

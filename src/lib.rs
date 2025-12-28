@@ -400,7 +400,7 @@ where
         timeout,
         prvkey,
     );
-    rpc::send_ws_subscribe_channel(rpcmsg, callback).await
+    rpc::send_ws_subscribe_channel(rpcmsg, timeout, callback).await
 }
 
 // ============== Channel Methods ==============
